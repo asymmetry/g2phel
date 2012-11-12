@@ -10,3 +10,12 @@
 *.lai
 *.la
 *.a
+
+align
+gen
+extract
+ring
+tir
+raw
+rootfiles
+*.tar.gz
