@@ -1,0 +1,10 @@
+g2p Helicity Decoder
+
+V1.0 (RC1)
+Release Condidate 1 version. Added backward decode for ring buffer. TIR decode now have 2 modes, one is normal, the other one will read ring buffer information for quick seed recovery.
+
+V0.9
+Rewrite decode.cxx and gen.cxx. Law decode will be done independently. Result can be written back to the tree.
+
+V0.8
+First independent version. Copied everything from the online helicity decoder which is included in the g2p library.
