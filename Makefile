@@ -8,6 +8,7 @@ endif
 INCDIRS = $(wildcard $(addprefix $(ANALYZER)/, include src hana_decode hana_scaler))
 
 LIBDIR       := $(ANALYZER)
+LIBET        := $(CODA)/Linux/lib/libet.a
 HALLALIBS    := -L$(LIBDIR) -lHallA -ldc -lscaler
 
 ROOTCFLAGS   := $(shell root-config --cflags)
@@ -27,9 +28,11 @@ CXXFLAGS     += $(DEFINES) $(INCLUDES)
 LIBS         += $(ROOTLIBS) $(HALLALIBS) $(SYSLIBS)
 GLIBS        += $(ROOTGLIBS) $(SYSLIBS)
 
+PROGRAMS = extract ring tir align gen_hel
+
 SRCDIR := src
 
-all: extract ring tir align gen
+all: $(PROGRAMS)
 
 extract: $(SRCDIR)/extract.o
 	$(LD) -g $(CXXFLAGS) -o $@ $< $(LIBS)
@@ -43,14 +46,14 @@ tir: $(SRCDIR)/tir.o
 align: $(SRCDIR)/align.o
 	$(LD) -g $(CXXFLAGS) -o $@ $< $(ROOTLIBS)
 
-gen: $(SRCDIR)/gen.o
+gen_hel: $(SRCDIR)/gen.o
 	$(LD) -g $(CXXFLAGS) -o $@ $< $(LIBS)
 
 clean:
-	rm -f $(SRCDIR)/*.o extract ring tir align gen
+	rm -f $(SRCDIR)/*.o $(PROGRAMS)
 
 release:
-	tar cvzf helicity.tar.gz helicity.sh HISTORY Makefile src --exclude=*.o
+	tar cvzf helicity.tar.gz HISTORY Makefile src --exclude=*.o
 
 $(SRCDIR)/%.o:	$(SRCDIR)/%.cxx
 	$(CXX) $(CXXFLAGS) -o $@ -c $<

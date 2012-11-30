@@ -12,10 +12,11 @@
 *.a
 
 align
-gen
+gen_hel
 extract
 ring
 tir
 raw
 rootfiles
+jobfiles
 *.tar.gz

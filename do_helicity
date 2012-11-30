@@ -1,0 +1,7 @@
+#!/bin/csh -fb
+source /w/halla-sfs62/g2p/env.csh
+foreach file (*.dat.0) 
+  set run = (`echo $file:t:r:r | awk -F'_' '{print $2}'`)
+  ./helicity $run -1
+  cp hel_$run.tar.gz /volatile/halla/g2p/helicity
+end
