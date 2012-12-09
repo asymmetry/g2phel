@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
+#include <libconfig.h>
 
 #include "TROOT.h"
 //#include "TFile.h"
@@ -13,18 +15,84 @@
 #include "hel.h"
 #include "decode.h"
 
-FILE *fp1,*fp2,*fp3;
+FILE *fp1, *fp2, *fp3;
 
-Int_t extract(Int_t nrun,Int_t total);
+Int_t extract(Int_t nrun, Int_t total);
 Int_t decode_hel(Int_t* data);
 Int_t findword(Int_t* data, struct rocinfo info);
-Int_t adc18_decode_data(Int_t data,Int_t adcnum,Int_t &num,Int_t &val);
-Bool_t isexist(Char_t* fname);
+Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val);
+void usage(int argc, char** argv);
 
-int main(int argc,char* argv[])
+#include "isexist.h"
+
+Bool_t USEBIN = kFALSE;
+Int_t EVTLIMIT = -1;
+Char_t CFGFILE[] = "./config.cfg";
+Char_t RAWPATH[] = ".";
+Char_t OUTPATH[] = ".";
+
+int main(int argc, char** argv)
 {
-    Int_t nrun=atoi(argv[1]);
-    Int_t total=atoi(argv[2]);
+    int c;
+
+    while (1) {
+        static struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"bin", no_argument, 0, 'b'},
+            {"event", required_argument, 0, 'e'},
+            {"cfgfile", required_argument, 0, 'c'},
+            {"rawpath", required_argument, 0, 'r'},
+            {"outpath", required_argument, 0, 'o'},
+            {0, 0, 0, 0}
+        };
+
+        int option_index = 0;
+
+        c = getopt_long (argc, argv, "bc:e:ho:r:", long_options, &option_index);
+
+        if (c==-1) break;
+
+        switch (c) {
+        case 'b':
+            USEBIN = kTRUE;
+            break;
+        case 'c':
+            strcpy(CFGFILE,optarg);
+            break;
+        case 'e':
+            EVTLIMIT = atoi(optarg);
+            break;
+        case 'h':
+            usage(argc, argv);
+            exit(0);
+            break;
+        case 'o':
+            strcpy(OUTPATH,optarg);
+            break;
+        case 'r':
+            strcpy(RAWPATH,optarg);
+            break;
+        case '?':
+            // getopt_long already printed an error message
+            break;
+        default:
+            usage(argc, argv);
+        }
+    }
+
+    Int_t nrun;
+
+    if (optind<argc) {
+        nrun = atoi(argv[optind++]);
+    }
+    else{
+        usage(argc, argv);
+        exit(-1);
+    }
+
+    printf("%d\n%d\n%s\n%s\n%s\n%d\n",USEBIN,EVTLIMIT,CFGFILE,RAWPATH,OUTPATH,nrun);
+
+    exit(0);
 
     if(nrun<20000){
         strcpy(arm,"L");
@@ -78,105 +146,14 @@ int main(int argc,char* argv[])
         info_TIM.index=4; 
     }
 
-    extract(nrun,total);
+    extract(nrun, EVTLIMIT);
 
     return 0;
 }
 
-Int_t extract(Int_t nrun,Int_t total)
+Int_t extract(Int_t nrun, Int_t total)
 {
     printf("Extracting helicity information from run %d ...\n",nrun);
-    
-    // TChain *Tree=new TChain("T");
-
-    // Tree->Add(Form("%s/g2p_%d.root",INPUT_DIR,nrun));
-    // printf("Adding g2p_%d.root ...\n",nrun);
-
-    // Int_t t=1;
-    // while((fp=fopen(Form("%s/g2p_%d_%d.root",INPUT_DIR,nrun,t),"r"))!=NULL){
-    //     printf("Adding g2p_%d_%d.root ...\n",nrun,t);
-    //     fclose(fp);
-    //     Tree->Add(Form("%s/g2p_%d_%d.root",INPUT_DIR,nrun,t++));
-    // }
-
-    // Double_t fIRing,fIHappex;
-    // Double_t fQRT,fHelicityTIR,fMPS,fPairSync,fTimeStampTIR;
-    // Double_t *fHelicityRing,*fQRTRing;
-    // Double_t *fDRing[8];
-    // Double_t *fHelicityHap,*fQRTHap;
-    // Double_t *fDHap[20];
-
-    // fHelicityRing=new Double_t[50];
-    // fQRTRing=new Double_t[50];
-    // fHelicityHap=new Double_t[50];
-    // fQRTHap=new Double_t[50];
-    // for(Int_t i=0;i<8;i++)
-    //     fDRing[i]=new Double_t[50];
-    // for(Int_t i=0;i<20;i++)
-    //     fDHap[i]=new Double_t[50];
-
-    // Tree->SetBranchAddress(Form("hel.%s.numring",arm),&fIRing);
-    // Tree->SetBranchAddress(Form("hel.%s.numhappex",arm),&fIHappex);
-    // Tree->SetBranchAddress(Form("hel.%s.hel_rep",arm),&fHelicityTIR);
-    // Tree->SetBranchAddress(Form("hel.%s.qrt",arm),&fQRT);
-    // Tree->SetBranchAddress(Form("hel.%s.tsettle",arm),&fMPS);
-    // Tree->SetBranchAddress(Form("hel.%s.pairsync",arm),&fPairSync);
-    // Tree->SetBranchAddress(Form("hel.%s.time",arm),&fTimeStampTIR);
-    // Tree->SetBranchAddress(Form("hel.%s.hel_ring_rep",arm),fHelicityRing);
-    // Tree->SetBranchAddress(Form("hel.%s.qrt_ring",arm),fQRTRing);
-    // Tree->SetBranchAddress(Form("hel.%s.time_ring_rep",arm),fDRing[0]);
-    // Tree->SetBranchAddress(Form("hel.%s.bcm_up_ring",arm),fDRing[1]);
-    // Tree->SetBranchAddress(Form("hel.%s.bcm_down_ring",arm),fDRing[2]);
-    // Tree->SetBranchAddress(Form("hel.%s.L1A_ring",arm),fDRing[3]);
-    // if(arm[0]=='L'){
-    //     Tree->SetBranchAddress("hel.L.T3_ring",fDRing[4]);
-    //     Tree->SetBranchAddress("hel.L.T4_ring",fDRing[5]);
-    //     Tree->SetBranchAddress("hel.L.hel_happex_rep",fHelicityHap);
-    //     Tree->SetBranchAddress("hel.L.qrt_happex",fQRTHap);
-    //     Tree->SetBranchAddress("hel.L.happex.bcmup",fDHap[0]);
-    //     Tree->SetBranchAddress("hel.L.happex.bcmdown",fDHap[1]);
-    // }
-    // else if(arm[0]=='R'){
-    //     Tree->SetBranchAddress("hel.R.T1_ring",fDRing[4]);
-    //     Tree->SetBranchAddress("hel.R.T2_ring",fDRing[5]);
-    //     Tree->SetBranchAddress("hel.R.hel_happex_rep",fHelicityHap);
-    //     Tree->SetBranchAddress("hel.R.qrt_happex",fQRTHap);
-    //     Tree->SetBranchAddress("hel.R.happex.bcmup",fDHap[0]);
-    //     Tree->SetBranchAddress("hel.R.happex.bcmdown",fDHap[1]);
-    // }
-    // else if(arm[0]=='T'){
-    //     Tree->SetBranchAddress("hel.TA.Trigger",fDRing[4]);
-    // }
-
-    // fp1=fopen(Form("helTIR_%d.tmp",nrun),"w");
-    // fp2=fopen(Form("helRIN_%d.tmp",nrun),"w");
-    // fp3=fopen(Form("helHAP_%d.tmp",nrun),"w");
-
-    // Int_t N=Tree->GetEntries();
-    // fprintf(fp1,"%d\n",N);
-    // for(Int_t i=0;i<N;i++)
-    // {
-    //     Tree->GetEntry(i);
-    //     fprintf(fp1,"%d\t%d\t%d\t%d\t%d\t%d\n",i,(Int_t)fHelicityTIR,(Int_t)fQRT,(Int_t)fMPS,(Int_t)fPairSync,(Int_t)fTimeStampTIR);
-    //     for(Int_t j=0;j<(Int_t)fIRing;j++){
-    //         fprintf(fp2,"%d\t%d",(Int_t)fHelicityRing[j],(Int_t)fQRTRing[j]);
-    //         for(Int_t k=0;k<nring;k++){
-    //             fprintf(fp2,"\t%d",(Int_t)fDRing[k][j]);
-    //         }
-    //         fprintf(fp2,"\n");
-    //     }
-    //     for(Int_t j=0;j<(Int_t)fIHappex;j++){
-    //         fprintf(fp3,"%d\t%d",(Int_t)fHelicityHap[j],(Int_t)fQRTHap[j]);
-    //         for(Int_t k=0;k<nhap;k++){
-    //             fprintf(fp3,"\t%d",(Int_t)fDHap[k][j]);
-    //         }
-    //         fprintf(fp3,"\n");
-    //     }
-    // }
-
-    // fclose(fp1);
-    // fclose(fp2);
-    // fclose(fp3);
 
     Char_t filename[300];
     
@@ -419,18 +396,13 @@ Int_t adc18_decode_data(Int_t data,Int_t adcnum,Int_t &num,Int_t &val)
     return 0;
 }
 
-Bool_t isexist(Char_t* fname)
+void usage(int argc, char** argv)
 {
-    FILE *temp;
-    Bool_t isopen;
-
-    if((temp=fopen(fname,"r"))==NULL){
-        isopen=false;
-    }
-    else{
-        isopen=true;
-        fclose(temp);
-    }
-
-  return isopen;
+    printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
+    printf("  -b, --bin                  Set output binary file\n");
+    printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
+    printf("  -e, --event=-1             Set event limit\n");
+    printf("  -h, --help                 This small usage guide\n");
+    printf("  -o, --outpath=.            Set output path\n");
+    printf("  -r, --rawpath=.            Set rawdata path\n");
 }
