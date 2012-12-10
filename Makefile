@@ -33,7 +33,8 @@ CXXFLAGS     += $(DEFINES) $(INCLUDES)
 LIBS         += $(ROOTLIBS) $(HALLALIBS) $(SYSLIBS)
 GLIBS        += $(ROOTGLIBS) $(SYSLIBS)
 
-PROGRAMS = decode ring tir align gen_hel
+#PROGRAMS = decode ring tir align gen_hel
+PROGRAMS = decode
 
 SRCDIR := src
 

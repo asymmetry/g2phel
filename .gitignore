@@ -13,7 +13,7 @@
 
 align
 gen_hel
-extract
+decode
 ring
 tir
 raw
