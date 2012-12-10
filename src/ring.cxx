@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
+#include <libconfig.h>
 
 #include "TROOT.h"
 
@@ -8,7 +10,7 @@
 
 #define LEN 15000000
 
-FILE *fp,*fp1,*fp2;
+FILE *fp1, *fp2;
 
 //Global variables
 Int_t gHelicity_rep[LEN];
@@ -18,61 +20,145 @@ Int_t gSeed_rep[LEN];
 Int_t gError[LEN];
 Int_t gN;
 
-Int_t readin(Int_t nrun,Char_t *name);
+Int_t readin(Int_t nrun, Int_t nring, Int_t select);
 Int_t predictring(Int_t nrun);
-Int_t printout(Int_t nrun,Char_t *name);
+Int_t printout(Int_t nrun, Int_t nring, Int_t select);
 Int_t RanBit30(Int_t &runseed);
 Int_t BitRan30(Int_t &runseed);
+void usage(int argc, char** argv);
 
-int main(int argc,char* argv[])
+Char_t CFGFILE[300] = "./config.cfg";
+Char_t INDIR[300] = ".";
+Char_t OUTDIR[300] = ".";
+
+int main(int argc,char** argv)
 {
-    Int_t nrun=atoi(argv[1]);
+    int c;
 
-    if(nrun<20000){
-        strcpy(arm,"L");
-        nring=7;
-        nhap=2;
-    }    
-    else if(nrun<40000){
-        strcpy(arm,"R");
-        nring=7;
-        nhap=2;
-    }
-    else{
-        strcpy(arm,"TA");
-        nring=6;
-        nhap=0;
+    while (1) {
+        static struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"cfgfile", required_argument, 0, 'c'},
+            {"indir", required_argument, 0, 'i'},
+            {"outdir", required_argument, 0, 'o'},
+            {0, 0, 0, 0}
+        };
+
+        int option_index = 0;
+
+        c = getopt_long (argc, argv, "c:hi:o:", long_options, &option_index);
+
+        if (c==-1) break;
+        
+        switch (c) {
+        case 'c':
+            strcpy(CFGFILE, optarg);
+            break;
+        case 'h':
+            usage(argc, argv);
+            exit(0);
+            break;
+        case 'i':
+            strcpy(INDIR, optarg);
+            break;
+        case 'o':
+            strcpy(OUTDIR, optarg);
+            break;
+        case '?':
+            // getopt_long already printed an error message
+            break;
+        default:
+            usage(argc, argv);
+        }
     }
 
-    if(strcmp(argv[2],"HAP")==0)nring=nhap;
+    Int_t nrun;
+
+    if (optind<argc) {
+        nrun = atoi(argv[optind++]);
+    }
+    else {
+        usage(argc, argv);
+        exit(-1);
+    }
+
+    config_t cfg;
+    config_setting_t *setting;
+
+    config_init(&cfg);
+
+    if (!config_read_file(&cfg, CFGFILE)) {
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        exit(EXIT_FAILURE);
+    }
+
+    Bool_t configerror = kFALSE;
+
+    if (!(config_lookup_int(&cfg, "ndelay", &NDELAY)
+          && config_lookup_int(&cfg, "maxbit", &MAXBIT)
+          && config_lookup_float(&cfg, "windowlength", &WT))) {
+        configerror = kTRUE;
+    }
     
-    readin(nrun,argv[2]);
+    setting = config_lookup(&cfg, "ringinfo.data");
+    if (setting != NULL) {
+        NRING=config_setting_length(setting);
+    }
+    else configerror = kTRUE;
+    setting = config_lookup(&cfg, "happexinfo.data");
+    if (setting != NULL) {
+        USEHAPPEX=kTRUE;
+        NHAPPEX=config_setting_length(setting);
+    }
+    else {
+        USEHAPPEX=kFALSE;
+    }
+
+    if (configerror) {
+        printf("Invalid cfg file !\n");
+        exit(-1);
+    }
+
+    readin(nrun, NRING, 1);
     predictring(nrun);
-    printout(nrun,argv[2]);
+    printout(nrun, NRING, 1);
+    if (USEHAPPEX) {
+        readin(nrun, NHAPPEX, 2);
+        predictring(nrun);
+        printout(nrun, NHAPPEX, 2);
+    }
+
+    config_destroy(&cfg);
     
     return 0;
 }
 
-Int_t readin(Int_t nrun,Char_t *name)
+Int_t readin(Int_t nrun, Int_t nring, Int_t select)
 {
-    printf("Reading %s helicity information ...\n",name);
-
-    fp=fopen(Form("hel%s_%d.tmp",name,nrun),"r");
-
+    if (select==1) {
+        printf("Reading scaler ring buffer helicity information ...\n");
+        fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r");
+    }
+    else if (select==2) {
+         printf("Reading happex ring buffer helicity information ...\n");
+        fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r");
+    }
+    
     Int_t temp1;
 
     gN=0;
 
-    fscanf(fp,"%d",&temp1);
-    while(!feof(fp)){
-        fscanf(fp,"%d%d",&gHelicity_rep[gN],&gQRT[gN]);
+    fscanf(fp1,"%d",&temp1);
+    while(!feof(fp1)){
+        fscanf(fp1,"%d%d",&gHelicity_rep[gN],&gQRT[gN]);
         for(Int_t i=0;i<nring;i++)
-            fscanf(fp,"%d",&temp1);
+            fscanf(fp1,"%d",&temp1);
         gN++;
-        fscanf(fp,"%d",&temp1);
+        fscanf(fp1,"%d",&temp1);
     }
 
-    fclose(fp);
+    fclose(fp1);
     
     return 0;
 }
@@ -195,11 +281,17 @@ Int_t predictring(Int_t nrun){
     return 0;
 }
 
-Int_t printout(Int_t nrun, Char_t* name)
+Int_t printout(Int_t nrun, Int_t nring, Int_t select)
 {
-    fp1=fopen(Form("hel%s_%d.tmp",name,nrun),"r");
-    fp2=fopen(Form("hel%s_%d.dat",name,nrun),"w");
-
+    if (select==1) {
+        fp1 = fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun),"r");
+        fp2 = fopen(Form("%s/helRIN_%d.dat", OUTDIR, nrun),"w");
+    }
+    else if (select==2) {
+        fp1 = fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun),"r");
+        fp2 = fopen(Form("%s/helHAP_%d.dat", OUTDIR, nrun),"w");
+    }
+    
     Int_t temp[10];
 
     fprintf(fp2,"%d\n",gN);
@@ -221,40 +313,50 @@ Int_t printout(Int_t nrun, Char_t* name)
 
 Int_t RanBit30(Int_t& ranseed)
 {
-  // Take 7,28,29,30 bit of ranseed out
-  UInt_t bit7    = ((ranseed&0x00000040)!=0);
-  UInt_t bit28   = ((ranseed&0x08000000)!=0);
-  UInt_t bit29   = ((ranseed&0x10000000)!=0);
-  UInt_t bit30   = ((ranseed&0x20000000)!=0);
+    // Take 7,28,29,30 bit of ranseed out
+    UInt_t bit7 = ((ranseed&0x00000040)!=0);
+    UInt_t bit28 = ((ranseed&0x08000000)!=0);
+    UInt_t bit29 = ((ranseed&0x10000000)!=0);
+    UInt_t bit30 = ((ranseed&0x20000000)!=0);
 
-  UInt_t newbit  = (bit30^bit29^bit28^bit7)&0x1;
+    UInt_t newbit = (bit30^bit29^bit28^bit7)&0x1;
 
-  if(ranseed<=0){
-    newbit=0;
-  }
-  
-  ranseed=((ranseed<<1)|newbit)&0x3FFFFFFF;
+    if (ranseed<=0) {
+        newbit = 0;
+    }
+    ranseed = ((ranseed<<1)|newbit)&0x3FFFFFFF;
 
-  return newbit;
+    return newbit;
 }
 
 Int_t BitRan30(Int_t& ranseed)
 {
-  // Take 7,28,29,30 bit of ranseed out
-  UInt_t bit1    = ((ranseed&0x00000001)!=0);
-  UInt_t bit8    = ((ranseed&0x00000080)!=0);
-  UInt_t bit29   = ((ranseed&0x10000000)!=0);
-  UInt_t bit30   = ((ranseed&0x20000000)!=0);
+    // Take 1,8,29,30 bit of ranseed out
+    // Backward predict
 
-  UInt_t newbit  = (bit30^bit29^bit8^bit1)&0x1;
+    UInt_t bit1 = ((ranseed&0x00000001)!=0);
+    UInt_t bit8 = ((ranseed&0x00000080)!=0);
+    UInt_t bit29 = ((ranseed&0x10000000)!=0);
+    UInt_t bit30 = ((ranseed&0x20000000)!=0);
 
-  if(ranseed<=0){
-    newbit=0;
-  }
-  
-  ranseed=((ranseed>>1)|(newbit<<29))&0x3FFFFFFF;
+    UInt_t newbit = (bit30^bit29^bit8^bit1)&0x1;
 
-  newbit=((ranseed&0x1)!=0);
+    if (ranseed<=0) {
+        newbit = 0;
+    }
 
-  return newbit;
+    ranseed = ((ranseed>>1)|(newbit<<29))&0x3FFFFFFF;
+
+    newbit = ((ranseed&0x1)!=0);
+
+    return newbit;
+}
+
+void usage(int argc, char** argv)
+{
+    printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
+    printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
+    printf("  -h, --help                 This small usage guide\n");
+    printf("  -i, --indir=.              Set input directory\n");
+    printf("  -o, --outdir=.             Set output directory\n");
 }

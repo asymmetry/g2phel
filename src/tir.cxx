@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
+#include <libconfig.h>
 
 #include "TROOT.h"
 
@@ -13,7 +15,7 @@
 #define M8 0x00ff00ff
 #define M16 0x0000ffff
 
-FILE *fp,*fp1,*fp2;
+FILE *fp1, *fp2;
 
 //Global variables
 Int_t gHelicity_rep[LEN];
@@ -28,73 +30,148 @@ Int_t gEventRing[LEN];
 Int_t gError[LEN];
 Int_t gN,gNRing;
 
-Int_t readin(Int_t nrun,Int_t fring);
-Int_t predicttir(Int_t nrun,Int_t fring);
+Int_t readin(Int_t nrun, Bool_t usering);
+Int_t predicttir(Int_t nrun, Bool_t usering);
 Int_t printout(Int_t nrun);
 Int_t RanBit30(Int_t &runseed);
 Int_t popcount(Int_t x);
+void usage(int argc, char** argv);
 
-int main(int argc,char* argv[])
+Char_t CFGFILE[300] = "./config.cfg";
+Char_t INDIR[300] = ".";
+Char_t OUTDIR[300] = ".";
+
+int main(int argc,char** argv)
 {
-    Int_t nrun=atoi(argv[1]);
-    Int_t fring=atoi(argv[2]);
+    int c;
+    Bool_t usering = kFALSE;
 
-    if(nrun<20000){
-        strcpy(arm,"L");
-        nring=7;
-    }    
-    else if(nrun<40000){
-        strcpy(arm,"R");
-        nring=7;
+    while (1) {
+        static struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"ring", no_argument, 0, 'r'},
+            {"cfgfile", required_argument, 0, 'c'},
+            {"indir", required_argument, 0, 'i'},
+            {"outdir", required_argument, 0, 'o'},
+            {0, 0, 0, 0}
+        };
+
+        int option_index = 0;
+
+        c = getopt_long (argc, argv, "c:hi:o:r", long_options, &option_index);
+
+        if (c==-1) break;
+        
+        switch (c) {
+        case 'c':
+            strcpy(CFGFILE, optarg);
+            break;
+        case 'h':
+            usage(argc, argv);
+            exit(0);
+            break;
+        case 'i':
+            strcpy(INDIR, optarg);
+            break;
+        case 'o':
+            strcpy(OUTDIR, optarg);
+            break;
+        case 'r':
+            usering = kTRUE;
+            break;
+        case '?':
+            // getopt_long already printed an error message
+            break;
+        default:
+            usage(argc, argv);
+        }
     }
-    else{
-        strcpy(arm,"TA");
-        nring=6;
+
+    Int_t nrun;
+
+    if (optind<argc) {
+        nrun = atoi(argv[optind++]);
+    }
+    else {
+        usage(argc, argv);
+        exit(-1);
+    }
+
+    config_t cfg;
+    config_setting_t *setting;
+
+    config_init(&cfg);
+
+    if (!config_read_file(&cfg, CFGFILE)) {
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        exit(EXIT_FAILURE);
+    }
+
+    Bool_t configerror = kFALSE;
+
+    if (!(config_lookup_int(&cfg, "ndelay", &NDELAY)
+          && config_lookup_int(&cfg, "maxbit", &MAXBIT)
+          && config_lookup_float(&cfg, "windowlength", &WT))) {
+        configerror = kTRUE;
+    }
+
+    if (usering) {
+        setting = config_lookup(&cfg, "ringinfo.data");
+        if (setting != NULL) {
+            NRING=config_setting_length(setting);
+        }
+        else configerror = kTRUE;
+    }
+
+    if (configerror) {
+        printf("Invalid cfg file !\n");
+        exit(-1);
     }
     
-    readin(nrun,fring);
-    predicttir(nrun,fring);
+    readin(nrun, usering);
+    predicttir(nrun, usering);
     printout(nrun);
     
     return 0;
 }
 
-Int_t readin(Int_t nrun,Int_t fring)
+Int_t readin(Int_t nrun, Bool_t usering)
 {
     printf("Reading TIR helicity information ...\n");
 
-    fp=fopen(Form("helTIR_%d.tmp",nrun),"r");
+    fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r");
 
     Int_t temp[10];
 
     gN=0;
     
-    fscanf(fp,"%d",&temp[0]);
-    while(!feof(fp)){
-        fscanf(fp,"%d%d%d%d%d%d%d",&gHelicity_rep[gN],&gQRT[gN],&gPairSync[gN],&gMPS[gN],&gTimeStamp[gN],&temp[0],&temp[1]);
-        fscanf(fp,"%d",&temp[0]);
+    fscanf(fp1,"%d",&temp[0]);
+    while(!feof(fp1)){
+        fscanf(fp1,"%d%d%d%d%d%d%d",&gHelicity_rep[gN],&gQRT[gN],&gPairSync[gN],&gMPS[gN],&gTimeStamp[gN],&temp[0],&temp[1]);
+        fscanf(fp1,"%d",&temp[0]);
         gN++;
     }
 
-    fclose(fp);
+    fclose(fp1);
 
-    if(fring==1){
-        fp=fopen(Form("helRIN_%d.dat",nrun),"r");
+    if (usering) {
+        fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r");
 
-        fscanf(fp,"%d",&gNRing);
+        fscanf(fp1,"%d",&gNRing);
 
         for(Int_t i=0;i<gNRing;i++){
-            fscanf(fp,"%d%d%d%d%x%d",&gEventRing[i],&temp[1],&temp[2],&temp[3],&gSeedRing_rep[i],&temp[4]);
-            for(Int_t k=0;k<nring;k++)fscanf(fp,"%d",&temp[0]);
+            fscanf(fp1,"%d%d%d%d%x%d",&gEventRing[i],&temp[1],&temp[2],&temp[3],&gSeedRing_rep[i],&temp[4]);
+            for(Int_t k=0;k<NRING;k++)fscanf(fp1,"%d",&temp[0]);
         }
 
-        fclose(fp);
+        fclose(fp1);
     }
     
     return 0;
 }
 
-Int_t predicttir(Int_t nrun,Int_t fring)
+Int_t predicttir(Int_t nrun, Bool_t usering)
 {
     printf("Predicting TIR helicity information ...\n");
 
@@ -201,7 +278,7 @@ Int_t predicttir(Int_t nrun,Int_t fring)
                         else{
                             fSeedTIR_rep=0;
                             fNSeedTIR=0;
-                            if(fring==1){
+                            if (usering) {
                                 for(k=0;k<MAXMISSED;k++){
                                     if(fGapQRT<(6.0+k*4)*WT)break;
                                     fSeedTIR_fake=(fSeedTIR_fake<<1&0x3FFFFFFF)|0x0;
@@ -209,7 +286,7 @@ Int_t predicttir(Int_t nrun,Int_t fring)
                                 }
                             }
                         }
-                        if(fring==1){
+                        if (usering) {
                             fSeedTIR_fake=(fSeedTIR_fake<<1&0x3FFFFFFF)|gHelicity_rep[i];
                             fMask=(fMask<<1&0x3FFFFFFF)|0x1;
                         }
@@ -226,7 +303,7 @@ Int_t predicttir(Int_t nrun,Int_t fring)
                             else{
                                 fNSeedTIR=0;
                                 fSeedTIR_rep=0;
-                                if(fring==1){
+                                if (usering) {
                                     for(k=0;k<MAXMISSED;k++){
                                         if(fGapQRT<(2.0+k*4)*WT)break;
                                         fSeedTIR_fake=(fSeedTIR_fake<<1&0x3FFFFFFF)|0x0;
@@ -234,14 +311,14 @@ Int_t predicttir(Int_t nrun,Int_t fring)
                                     }
                                 }
                             }
-                            if(fring==1){
+                            if (usering) {
                                 fSeedTIR_fake=(fSeedTIR_fake<<1&0x3FFFFFFF)|gHelicity_rep[i];
                                 fMask=(fMask<<1&0x3FFFFFFF)|0x1;
                             }
                             if(k>=MAXMISSED)fSeedTIR_fake=0;
                         }
                     }
-                    if((fring==1)&&(popcount(fMask)>=10)){
+                    if ((usering)&&(popcount(fMask)>=10)) {
                         Int_t j;
                         for(j=0;j<gNRing;j++){
                             if(gEventRing[j]>=i+1)break;
@@ -303,19 +380,19 @@ Int_t predicttir(Int_t nrun,Int_t fring)
 
 Int_t printout(Int_t nrun)
 {
-    fp=fopen(Form("helTIR_%d.dat",nrun),"w");
-    fp1=fopen(Form("helTIR_%d.tmp",nrun),"r");
+    fp1 = fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun),"r");
+    fp2 = fopen(Form("%s/helTIR_%d.noring.dat", OUTDIR, nrun),"w");
 
     Int_t temp[10];
 
-    fprintf(fp,"%d\n",gN);
+    fprintf(fp2,"%d\n",gN);
     for(Int_t i=0;i<gN;i++){
         fscanf(fp1,"%d%d%d%d%d%d%d%d",&temp[0],&temp[1],&temp[2],&temp[3],&temp[4],&temp[5],&temp[6],&temp[7]);
-        fprintf(fp,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%d\t%d\n",temp[0],gHelicity_act[i],gHelicity_rep[i],gQRT[i],gPairSync[i],gMPS[i],gTimeStamp[i],gSeed_rep[i],gError[i],temp[6],temp[7]);
+        fprintf(fp2,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%d\t%d\n",temp[0],gHelicity_act[i],gHelicity_rep[i],gQRT[i],gPairSync[i],gMPS[i],gTimeStamp[i],gSeed_rep[i],gError[i],temp[6],temp[7]);
     }
 
-    fclose(fp);
     fclose(fp1);
+    fclose(fp2);
     
     return 0;
 }
@@ -347,4 +424,14 @@ Int_t popcount(Int_t x)
     x=(x&M8)+((x>>8)&M8);
     x=(x&M16)+((x>>16)&M16);
     return x;
+}
+
+void usage(int argc, char** argv)
+{
+    printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
+    printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
+    printf("  -h, --help                 This small usage guide\n");
+    printf("  -i, --indir=.              Set input directory\n");
+    printf("  -o, --outdir=.             Set output directory\n");
+    printf("  -r, --ring                 Use ring info to help predict\n");
 }

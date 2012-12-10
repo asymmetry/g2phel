@@ -34,20 +34,20 @@ LIBS         += $(ROOTLIBS) $(HALLALIBS) $(SYSLIBS)
 GLIBS        += $(ROOTGLIBS) $(SYSLIBS)
 
 #PROGRAMS = decode ring tir align gen_hel
-PROGRAMS = decode
+PROGRAMS = decode ring tir
 
 SRCDIR := src
 
 all: $(PROGRAMS)
 
 decode: $(SRCDIR)/decode.o
-	$(LD) -g $(CXXFLAGS) -o $@ $< $(LIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS) $(LIBCONF)
 
 ring: $(SRCDIR)/ring.o
-	$(LD) -g $(CXXFLAGS) -o $@ $< $(ROOTLIBS)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
 
 tir: $(SRCDIR)/tir.o
-	$(LD) -g $(CXXFLAGS) -o $@ $< $(ROOTLIBS)
+	$(LD) -g $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
 
 align: $(SRCDIR)/align.o
 	$(LD) -g $(CXXFLAGS) -o $@ $< $(ROOTLIBS)

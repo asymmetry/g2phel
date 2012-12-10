@@ -27,8 +27,8 @@ void usage(int argc, char** argv);
 
 Int_t EVTLIMIT = -1;
 Char_t CFGFILE[300] = "./config.cfg";
-Char_t RAWPATH[300] = ".";
-Char_t OUTPATH[300] = ".";
+Char_t RAWDIR[300] = ".";
+Char_t OUTDIR[300] = ".";
 
 int main(int argc, char** argv)
 {
@@ -39,8 +39,8 @@ int main(int argc, char** argv)
             {"help", no_argument, 0, 'h'},
             {"event", required_argument, 0, 'e'},
             {"cfgfile", required_argument, 0, 'c'},
-            {"rawpath", required_argument, 0, 'r'},
-            {"outpath", required_argument, 0, 'o'},
+            {"rawdir", required_argument, 0, 'r'},
+            {"outdir", required_argument, 0, 'o'},
             {0, 0, 0, 0}
         };
 
@@ -62,10 +62,10 @@ int main(int argc, char** argv)
             exit(0);
             break;
         case 'o':
-            strcpy(OUTPATH, optarg);
+            strcpy(OUTDIR, optarg);
             break;
         case 'r':
-            strcpy(RAWPATH, optarg);
+            strcpy(RAWDIR, optarg);
             break;
         case '?':
             // getopt_long already printed an error message
@@ -158,6 +158,8 @@ int main(int argc, char** argv)
     
     extract(nrun);
 
+    config_destroy(&cfg);
+
     return 0;
 }
 
@@ -168,15 +170,15 @@ Int_t extract(Int_t nrun)
     Char_t filename[300];
     
     Int_t filecount=0;
-    sprintf(filename, "%s/g2p_%d.dat.%d", RAWPATH, nrun, filecount);
+    sprintf(filename, "%s/g2p_%d.dat.%d", RAWDIR, nrun, filecount);
 
     THaCodaData *coda;
     
     coda = new THaCodaFile();
 
-    fp1=fopen(Form("%s/helTIR_%d.tmp", OUTPATH, nrun),"w");
-    fp2=fopen(Form("%s/helRIN_%d.tmp", OUTPATH, nrun),"w");
-    if (USEHAPPEX) fp3=fopen(Form("%s/helHAP_%d.tmp", OUTPATH, nrun),"w");
+    fp1=fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun),"w");
+    fp2=fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun),"w");
+    if (USEHAPPEX) fp3=fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun),"w");
 
     Int_t status,*data;
     Int_t evcount=0;
@@ -209,7 +211,7 @@ Int_t extract(Int_t nrun)
             status=coda->codaRead();
         }
         filecount++;
-        sprintf(filename, "%s/g2p_%d.dat.%d", RAWPATH, nrun, filecount);
+        sprintf(filename, "%s/g2p_%d.dat.%d", RAWDIR, nrun, filecount);
     }
     
     fclose(fp1);
@@ -412,6 +414,6 @@ void usage(int argc, char** argv)
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
     printf("  -e, --event=-1             Set event limit\n");
     printf("  -h, --help                 This small usage guide\n");
-    printf("  -o, --outpath=.            Set output path\n");
-    printf("  -r, --rawpath=.            Set rawdata path\n");
+    printf("  -o, --outdir=.             Set output directory\n");
+    printf("  -r, --rawdir=.             Set rawdata directory\n");
 }
