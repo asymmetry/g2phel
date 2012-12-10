@@ -25,7 +25,6 @@ void usage(int argc, char** argv);
 
 #include "isexist.h"
 
-Bool_t USEBIN = kFALSE;
 Int_t EVTLIMIT = -1;
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t RAWPATH[300] = ".";
@@ -38,7 +37,6 @@ int main(int argc, char** argv)
     while (1) {
         static struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"bin", no_argument, 0, 'b'},
             {"event", required_argument, 0, 'e'},
             {"cfgfile", required_argument, 0, 'c'},
             {"rawpath", required_argument, 0, 'r'},
@@ -48,14 +46,11 @@ int main(int argc, char** argv)
 
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "bc:e:ho:r:", long_options, &option_index);
+        c = getopt_long (argc, argv, "c:e:ho:r:", long_options, &option_index);
 
         if (c==-1) break;
         
         switch (c) {
-        case 'b':
-            USEBIN = kTRUE;
-            break;
         case 'c':
             strcpy(CFGFILE, optarg);
             break;
@@ -179,9 +174,9 @@ Int_t extract(Int_t nrun)
     
     coda = new THaCodaFile();
 
-    fp1=fopen(Form("helTIR_%d.tmp",nrun),"w");
-    fp2=fopen(Form("helRIN_%d.tmp",nrun),"w");
-    fp3=fopen(Form("helHAP_%d.tmp",nrun),"w");
+    fp1=fopen(Form("%s/helTIR_%d.tmp", OUTPATH, nrun),"w");
+    fp2=fopen(Form("%s/helRIN_%d.tmp", OUTPATH, nrun),"w");
+    if (USEHAPPEX) fp3=fopen(Form("%s/helHAP_%d.tmp", OUTPATH, nrun),"w");
 
     Int_t status,*data;
     Int_t evcount=0;
@@ -219,7 +214,7 @@ Int_t extract(Int_t nrun)
     
     fclose(fp1);
     fclose(fp2);
-    fclose(fp3);
+    if (USEHAPPEX) fclose(fp3);
     
     return 0;
 }
@@ -306,7 +301,7 @@ Int_t decode_hel(Int_t* data)
     }
     fprintf(fp1,"%2d\t",fIRing);
     
-    if(info_HAP.roc!=0){
+    if (USEHAPPEX) {
         if((index=findword(data,info_HAP))!=-1){
             d=data[index++];
             if(((d&0xbf1ff000)==0xbf1ff000)&&((d&0xffffffff)!=0xffffffff)){
@@ -414,7 +409,6 @@ Int_t adc18_decode_data(Int_t data,Int_t adcnum,Int_t &num,Int_t &val)
 void usage(int argc, char** argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
-    printf("  -b, --bin                  Set output binary file\n");
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
     printf("  -e, --event=-1             Set event limit\n");
     printf("  -h, --help                 This small usage guide\n");
