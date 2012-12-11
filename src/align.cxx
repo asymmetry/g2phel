@@ -117,7 +117,7 @@ int main(int argc, char** argv)
     align(nrun, NRING, 1);
 
     if (USEHAPPEX) {
-        gSystem->Exec(Form("mv -vf %s/helTIR_%d.dat %s/helTIR_%d.nohap.dat", OUTDIR, nrun, INDIR, nrun));
+        gSystem->Exec(Form("mv -vf %s/hel_%d.dat %s/helTIR_%d.nohap.dat", OUTDIR, nrun, INDIR, nrun));
         readin(nrun, NHAPPEX, 2);
         align(nrun, NHAPPEX, 2);
     }
@@ -186,6 +186,7 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select)
     for(Int_t k=0;k<N;k++){
         fscanf(fp1, "%d%d%d%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeedTIR_rep, &fError);
         fgets(temp, 300, fp1);
+        temp[strlen(temp)-1]='\0';
         for(Int_t j=0; j<NDATA; j++) fDATA[j] = 0;
         if(fError==0){
             fPolarityTIR_rep=fSeedTIR_rep&0x01;
