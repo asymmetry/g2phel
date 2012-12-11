@@ -5,10 +5,6 @@
 #include <libconfig.h>
 
 #include "TROOT.h"
-//#include "TFile.h"
-//#include "TTree.h"
-//#include "TMath.h"
-//#include "TChain.h"
 #include "THaCodaData.h"
 #include "THaCodaFile.h"
 
