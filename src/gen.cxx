@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
+#include <libconfig.h>
 
 #include "TROOT.h"
 #include "TFile.h"
@@ -9,14 +11,106 @@
 
 #include "hel.h"
 
+#define NDATA 16
+
 FILE *fp1,*fp2,*fp3;
 
 Int_t insert(Int_t nrun,Char_t* filename);
 Int_t construct(Int_t nrun);
-Bool_t isexist(Char_t* fname);
+void usage(int argc, char** argv);
 
-int main(int argc,char* argv[])
+#include "isexist.h"
+
+Char_t CFGFILE[300] = "./config.cfg";
+Char_t INFODIR[300] = ".";
+Char_t ROOTDIR[300] = ".";
+
+int main(int argc,char** argv)
 {
+    int c;
+
+    while (1) {
+        static struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"cfgfile", required_argument, 0, 'c'},
+            {"infodir", required_argument, 0, 'i'},
+            {"rootdir", required_argument, 0, 'r'},
+            {0, 0, 0, 0}
+        };
+
+        int option_index = 0;
+
+        c = getopt_long (argc, argv, "c:hi:o:", long_options, &option_index);
+
+        if (c==-1) break;
+        
+        switch (c) {
+        case 'c':
+            strcpy(CFGFILE, optarg);
+            break;
+        case 'h':
+            usage(argc, argv);
+            exit(0);
+            break;
+        case 'i':
+            strcpy(INDIR, optarg);
+            break;
+        case 'o':
+            strcpy(OUTDIR, optarg);
+            break;
+        case '?':
+            // getopt_long already printed an error message
+            break;
+        default:
+            usage(argc, argv);
+        }
+    }
+
+    Int_t nrun;
+
+    if (optind<argc) {
+        nrun = atoi(argv[optind++]);
+    }
+    else {
+        usage(argc, argv);
+        exit(-1);
+    }
+
+    config_t cfg;
+    config_setting_t *setting;
+
+    config_init(&cfg);
+
+    if (!config_read_file(&cfg, CFGFILE)) {
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        exit(EXIT_FAILURE);
+    }
+
+    Bool_t configerror = kFALSE;
+
+    setting = config_lookup(&cfg, "ringinfo.data");
+    if (setting != NULL) {
+        NRING = config_setting_length(setting);
+    }
+    else configerror = kTRUE;
+    setting = config_lookup(&cfg, "happexinfo.data");
+    if (setting != NULL) {
+        USEHAPPEX = kTRUE;
+        NHAPPEX = config_setting_length(setting);
+    }
+    else {
+        USEHAPPEX = kFALSE;
+    }
+    
+    if (configerror) {
+        fprintf(stderr, "Invalid cfg file\n");
+        exit(-1);
+    }
+
+
+
+    
     Int_t nrun=atoi(argv[1]);
 
     if(nrun<20000){
@@ -329,20 +423,11 @@ Int_t construct(Int_t nrun)
     return 0;
 }
 
-Bool_t isexist(Char_t* fname)
+void usage(int argc, char** argv)
 {
-    FILE *temp;
-    Bool_t isopen;
-
-    if((temp=fopen(fname,"r"))==NULL){
-        isopen=false;
-    }
-    else{
-        isopen=true;
-        fclose(temp);
-    }
-
-  return isopen;
+    printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
+    printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
+    printf("  -h, --help                 This small usage guide\n");
+    printf("  -i, --infodir=.            Set helicity info directory\n");
+    printf("  -r, --rootdir=.            Set rootfile directory\n");
 }
-
-
