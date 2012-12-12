@@ -1,4 +1,5 @@
 #define MAXMISSED 300
+#define LEN 15000000
 
 Int_t NRING;
 Int_t NHAPPEX;

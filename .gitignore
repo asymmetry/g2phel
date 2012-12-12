@@ -20,3 +20,4 @@ raw
 rootfiles
 jobfiles
 *.tar.gz
+hel*.dat

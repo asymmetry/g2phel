@@ -8,7 +8,6 @@
 
 #include "hel.h"
 
-#define LEN 15000000
 #define M1 0x55555555
 #define M2 0x33333333
 #define M4 0x0f0f0f0f
@@ -125,7 +124,7 @@ int main(int argc,char** argv)
     }
 
     if (configerror) {
-        printf("Invalid cfg file !\n");
+        fprintf(stderr, "Invalid cfg file\n");
         exit(-1);
     }
     
@@ -140,8 +139,11 @@ Int_t readin(Int_t nrun, Bool_t usering)
 {
     printf("Reading TIR helicity information ...\n");
 
-    fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r");
-
+    if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r"))==NULL) {
+        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", INDIR, nrun);
+        exit(-1);
+    }
+    
     Int_t temp[10];
 
     gN=0;
@@ -156,7 +158,10 @@ Int_t readin(Int_t nrun, Bool_t usering)
     fclose(fp1);
 
     if (usering) {
-        fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r");
+        if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
+            exit(-1);
+        }
 
         fscanf(fp1,"%d",&gNRing);
 
@@ -380,8 +385,14 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
 
 Int_t printout(Int_t nrun)
 {
-    fp1 = fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun),"r");
-    fp2 = fopen(Form("%s/helTIR_%d.noring.dat", OUTDIR, nrun),"w");
+    if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r"))==NULL) {
+        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", INDIR, nrun);
+        exit(-1);
+    }
+    if ((fp2 = fopen(Form("%s/helTIR_%d.noring.dat", OUTDIR, nrun),"w"))==NULL) {
+        fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", OUTDIR, nrun);
+        exit(-1);
+    };
 
     Int_t temp[10];
 

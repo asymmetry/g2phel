@@ -8,8 +8,6 @@
 
 #include "hel.h"
 
-#define LEN 15000000
-
 FILE *fp1, *fp2;
 
 //Global variables
@@ -116,7 +114,7 @@ int main(int argc,char** argv)
     }
 
     if (configerror) {
-        printf("Invalid cfg file !\n");
+        fprintf(stderr, "Invalid cfg file\n");
         exit(-1);
     }
 
@@ -138,11 +136,17 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
 {
     if (select==1) {
         printf("Reading scaler ring buffer helicity information ...\n");
-        fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r");
+        if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r"))==NULL){
+            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR, nrun);
+            exit(-1);
+        }
     }
     else if (select==2) {
-         printf("Reading happex ring buffer helicity information ...\n");
-        fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r");
+        printf("Reading happex ring buffer helicity information ...\n");
+        if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r"))==NULL){
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR, nrun);
+            exit(-1);
+        }
     }
     
     Int_t temp1;
@@ -284,12 +288,24 @@ Int_t predictring(Int_t nrun){
 Int_t printout(Int_t nrun, Int_t nring, Int_t select)
 {
     if (select==1) {
-        fp1 = fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun),"r");
-        fp2 = fopen(Form("%s/helRIN_%d.dat", OUTDIR, nrun),"w");
+        if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR, nrun);
+            exit(-1);
+        }
+        if ((fp2 = fopen(Form("%s/helRIN_%d.dat", OUTDIR, nrun), "w"))==NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.dat", OUTDIR, nrun);
+            exit(-1);
+        }
     }
     else if (select==2) {
-        fp1 = fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun),"r");
-        fp2 = fopen(Form("%s/helHAP_%d.dat", OUTDIR, nrun),"w");
+        if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR, nrun);
+            exit(-1);
+        }
+        if ((fp2 = fopen(Form("%s/helHAP_%d.dat", OUTDIR, nrun), "w"))==NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.dat", OUTDIR, nrun);
+            exit(-1);
+        }
     }
     
     Int_t temp[10];

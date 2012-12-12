@@ -148,7 +148,7 @@ int main(int argc, char** argv)
     }
 
     if (configerror) {
-        printf("Invalid cfg file !\n");
+        fprintf(stderr, "Invalid cfg file\n");
         exit(-1);
     }
     
@@ -172,9 +172,20 @@ Int_t extract(Int_t nrun)
     
     coda = new THaCodaFile();
 
-    fp1=fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun),"w");
-    fp2=fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun),"w");
-    if (USEHAPPEX) fp3=fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun),"w");
+    if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun),"w"))==NULL) {
+        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", OUTDIR, nrun);
+        exit(-1);
+    }
+    if ((fp2 = fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun),"w"))==NULL) {
+        fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", OUTDIR, nrun);
+        exit(-1);
+    }
+    if (USEHAPPEX) {
+        if ((fp3 = fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun),"w"))==NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", OUTDIR, nrun);
+            exit(-1);  
+        }
+    }
 
     Int_t status,*data;
     Int_t evcount=0;
@@ -184,6 +195,7 @@ Int_t extract(Int_t nrun)
             printf("Adding %s ...\n",filename);
         }
         else{
+            fprintf(stderr, "Can not open %s", filename);
             break;
         }
         status=coda->codaRead();

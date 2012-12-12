@@ -9,8 +9,6 @@
 
 #include "hel.h"
 
-#define LEN 20000000
-
 FILE *fp1,*fp2,*fp3;
 
 Int_t insert(Int_t nrun,Char_t* filename);

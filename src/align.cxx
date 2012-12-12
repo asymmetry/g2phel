@@ -9,7 +9,6 @@
 
 #include "hel.h"
 
-#define LEN 15000000
 #define NDATA 8
 
 FILE *fp1,*fp2;
@@ -109,7 +108,7 @@ int main(int argc, char** argv)
     }
     
     if (configerror) {
-        printf("Invalid cfg file !\n");
+        fprintf(stderr, "Invalid cfg file\n");
         exit(-1);
     }
     
@@ -117,7 +116,7 @@ int main(int argc, char** argv)
     align(nrun, NRING, 1);
 
     if (USEHAPPEX) {
-        gSystem->Exec(Form("mv -vf %s/hel_%d.dat %s/helTIR_%d.nohap.dat", OUTDIR, nrun, INDIR, nrun));
+        gSystem->Exec(Form("mv -vf %s/hel_%d.dat %s/helTIR_%d.nohapp.dat", OUTDIR, nrun, INDIR, nrun));
         readin(nrun, NHAPPEX, 2);
         align(nrun, NHAPPEX, 2);
     }
@@ -128,10 +127,16 @@ int main(int argc, char** argv)
 Int_t readin(Int_t nrun, Int_t nring, Int_t select)
 {
     if (select==1) {
-        fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR,  nrun), "r");
+        if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR,  nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
+            exit(-1);        
+        }
     }
     else if (select==2) {
-        fp1 = fopen(Form("%s/helHAP_%d.dat", INDIR,  nrun), "r");
+        if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INDIR,  nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.dat", INDIR, nrun);
+            exit(-1); 
+        }
     }
     
     Int_t fHelRing_rep,fQRTRing,fPhase=0,temp1;
@@ -164,12 +169,21 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select)
     printf("Constructing new TIR helicity information ...\n");
 
     if (select==1) {
-        fp1 = fopen(Form("%s/helTIR_%d.noring.dat", INDIR, nrun), "r");
+        if ((fp1 = fopen(Form("%s/helTIR_%d.noring.dat", INDIR, nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", INDIR, nrun);
+            exit(-1);
+        }
     }
     else if (select==2) {
-        fp1 = fopen(Form("%s/helTIR_%d.nohap.dat", INDIR, nrun), "r");
+        if ((fp1 = fopen(Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat", INDIR, nrun);
+            exit(-1);
+        }
     }
-    fp2 = fopen(Form("%s/hel_%d.dat", OUTDIR, nrun), "w");
+    if ((fp2 = fopen(Form("%s/hel_%d.dat", OUTDIR, nrun), "w"))==NULL){
+        fprintf(stderr, "Can not open %s/hel_%d.dat", OUTDIR, nrun);
+        exit(-1);
+    }
     
     Int_t fHelicity_rep=0,fHelicity_act=0,fQRT=0,fMPS=0,fPairSync=0,fTimeStamp=0,fError=0;
     Int_t fEvNum;
