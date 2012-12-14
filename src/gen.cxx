@@ -11,8 +11,6 @@
 
 #include "hel.h"
 
-using namespace std;
-
 #define NDATA 16
 
 struct datainfo
@@ -57,7 +55,7 @@ int main(int argc,char** argv)
 
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "c:hi:o:", long_options, &option_index);
+        c = getopt_long (argc, argv, "c:hi:r:", long_options, &option_index);
 
         if (c==-1) break;
         
@@ -70,10 +68,10 @@ int main(int argc,char** argv)
             exit(0);
             break;
         case 'i':
-            strcpy(INDIR, optarg);
+            strcpy(INFODIR, optarg);
             break;
-        case 'o':
-            strcpy(OUTDIR, optarg);
+        case 'r':
+            strcpy(ROOTDIR, optarg);
             break;
         case '?':
             // getopt_long already printed an error message
@@ -95,7 +93,6 @@ int main(int argc,char** argv)
 
     config_t cfg;
     config_setting_t *setting;
-    config_setting_t *datasetting;
 
     config_init(&cfg);
 
@@ -106,44 +103,54 @@ int main(int argc,char** argv)
     }
 
     Bool_t configerror = kFALSE;
+    const char *temp;
 
-    Int_t ntir;
+    Int_t ntir = 0;
     setting = config_lookup(&cfg, "tirinfo");
     if (setting!=NULL) {
-        strcpy(tree_HEL.name, config_setting_get_string(&setting, "name"));
-        strcpy(tree_HEL.prefix, config_setting_get_string(&setting, "prefix"));
-        datasetting = config_setting_get_member(&setting, "data");
-        ntir = config_setting_length(datasetting);
-        for (int i=0; i<n; i++) {
-            strcpy(tree_HEL.data[i].name, config_setting_get_string_elem(&datasetting, i));
-            tree_HEL.data[i].index = config_setting_get_int_elem(&datasetting, i);
+        config_lookup_string(&cfg, "tirinfo.name", &temp);
+        strcpy(tree_HEL.name, temp);
+        config_lookup_string(&cfg, "tirinfo.prefix", &temp);
+        strcpy(tree_HEL.prefix, temp);
+        setting = config_lookup(&cfg, "tirinfo.data");
+        ntir = config_setting_length(setting);
+        for (int i=0; i<ntir; i++) {
+            config_setting_lookup_string(setting, "name", &temp);
+            strcpy(tree_HEL.data[i].name, temp);
+            config_setting_lookup_int(setting, "index", &tree_HEL.data[i].index);
         }
     }
     else configerror = kTRUE;
     
-    setting = config_lookup(&cfg, "ringinfo.data");
+    setting = config_lookup(&cfg, "ringinfo");
     if (setting!=NULL) {
-        strcpy(tree_RIN.name, config_setting_get_string(&setting, "name"));
-        strcpy(tree_RIN.prefix, config_setting_get_string(&setting, "prefix"));
-        datasetting = config_setting_get_member(&setting, "data");
+        config_lookup_string(&cfg, "ringinfo.name", &temp);
+        strcpy(tree_RIN.name, temp);
+        config_lookup_string(&cfg, "ringinfo.prefix", &temp);
+        strcpy(tree_RIN.prefix, temp);
+        setting = config_lookup(&cfg, "ringinfo.data");
         NRING = config_setting_length(setting);
         for (int i=0; i<NRING; i++) {
-            strcpy(tree_RIN.data[i].name, config_setting_get_string_elem(&datasetting, i));
-            tree_RIN.data[i].index = config_setting_get_int_elem(&datasetting, i);
+            config_setting_lookup_string(setting, "name", &temp);
+            strcpy(tree_RIN.data[i].name, temp);
+            tree_RIN.data[i].index = -1;
         }
     }
     else configerror = kTRUE;
 
-    setting = config_lookup(&cfg, "happexinfo.data");
+    setting = config_lookup(&cfg, "happexinfo");
     if (setting!=NULL) {
         USEHAPPEX = kTRUE;
-        strcpy(tree_HAP.name, config_setting_get_string(&setting, "name"));
-        strcpy(tree_HAP.prefix, config_setting_get_string(&setting, "prefix"));
-        datasetting = config_setting_get_member(&setting, "data");
+        config_lookup_string(&cfg, "happexinfo.name", &temp);
+        strcpy(tree_HAP.name, temp);
+        config_lookup_string(&cfg, "happexinfo.prefix", &temp);
+        strcpy(tree_HAP.prefix, temp);
+        setting = config_lookup(&cfg, "happexinfo.data");
         NHAPPEX = config_setting_length(setting);
         for (int i=0; i<NHAPPEX; i++) {
-            strcpy(tree_HAP.data[i].name, config_setting_get_string_elem(&datasetting, i));
-            tree_HAP.data[i].index = config_setting_get_int_elem(&datasetting, i);
+            config_setting_lookup_string(setting, "name", &temp);
+            strcpy(tree_RIN.data[i].name, temp);
+            tree_HAP.data[i].index = -1;
         }
     }
     else {
@@ -169,7 +176,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
     Int_t filecount = 0;
 
     TFile *f = new TFile(Form("%s/g2p_%d.root", ROOTDIR, nrun), "UPDATE");
-    while (f.IsOpen()) {
+    while (f->IsOpen()) {
         if ((fp1 = fopen(Form("%s/hel_%d.dat", INFODIR, nrun), "r"))==NULL) {
             fprintf(stderr, "Can not open %s/hel_%d.dat", INFODIR, nrun);
             exit(-1);
@@ -198,12 +205,12 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         newBranch.Add(t->Branch(Form("%stimestamp", tree_HEL.prefix), &fTimeStamp, "timestamp/I"));
         newBranch.Add(t->Branch(Form("%sseed", tree_HEL.prefix), &fSeed, "seed/I"));
         newBranch.Add(t->Branch(Form("%serror", tree_HEL.prefix), &fError, "error/I"));
-        newBranch.Add(t->Branch(Form("%snring", tree_HEL.prefix), &fIring, "nring/I"));
+        newBranch.Add(t->Branch(Form("%snring", tree_HEL.prefix), &fIRing, "nring/I"));
         newBranch.Add(t->Branch(Form("%snhappex", tree_HEL.prefix), &fIHappex, "nhappex/I"));
         for (Int_t i=0; i<ntir; i++) newBranch.Add(t->Branch(Form("%s%s", tree_HEL.prefix, tree_HEL.data[i].name), &fDATA[tree_HEL.data[i].index], Form("%s/I", tree_HEL.data[i].name)));
 
         Int_t nentries;
-        Int_t gEvNum = 0;
+        Int_t gEvNum = 0, N;
         
         fscanf(fp1, "%d", &N);
         nentries = t->GetEntries();
@@ -232,9 +239,8 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
                     fDATA[l]=0;
                 }
             }
-            TIter next(newBranch);
-            TBranch *workBranch;
-            while (workBranch = (TBranch*)next()) {
+            TIter next(&newBranch);
+            while (TBranch *workBranch = (TBranch*) next()) {
                 workBranch->Fill();
             }
         }
@@ -259,10 +265,10 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
     printf("Opening existed rootfile ...\n");
 
     Int_t filecount = 0;
-    treeinfo *ringtree;
+    treeinfo *ringtree = NULL;
 
     TFile *f = new TFile(Form("%s/g2p_%d.root", ROOTDIR, nrun), "UPDATE");
-    while (f.IsOpen()) {
+    while (f->IsOpen()) {
         if (select==1) {
             if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INFODIR, nrun), "r"))==NULL) {
                 fprintf(stderr, "Can not open %s/helRIN_%d.dat", INFODIR, nrun);
@@ -281,6 +287,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
         Int_t fHelicity_rep = 0, fHelicity_act = 0, fQRT = 0;
         Int_t fSeed = 0, fError = 0;
         Int_t fDATA[NDATA];
+        Int_t fEvNum;
 
         TTree *t = new TTree(ringtree->name, ringtree->name);
 
@@ -292,7 +299,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
         for (Int_t i=0; i<nring; i++) t->Branch(Form("%s%s", ringtree->prefix, ringtree->data[i].name), &fDATA[i], Form("%s/I", ringtree->data[i].name));
 
         Int_t nentries;
-        Int_t gEvNum = 0, gEvNumMax = 0, gEvNumMin = 0;
+        Int_t N, gEvNumMax = 0, gEvNumMin = 0;
 
         TTree *ori = (TTree *)f->Get("T");
 

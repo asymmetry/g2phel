@@ -33,8 +33,7 @@ CXXFLAGS     += $(DEFINES) $(INCLUDES)
 LIBS         += $(ROOTLIBS) $(HALLALIBS) $(SYSLIBS)
 GLIBS        += $(ROOTGLIBS) $(SYSLIBS)
 
-#PROGRAMS = decode ring tir align gen_hel
-PROGRAMS = decode ring tir align
+PROGRAMS = decode ring tir align gen_hel
 
 SRCDIR := src
 
@@ -47,13 +46,13 @@ ring: $(SRCDIR)/ring.o
 	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
 
 tir: $(SRCDIR)/tir.o
-	$(LD) -g $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
 
 align: $(SRCDIR)/align.o
-	$(LD) -g $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
 
 gen_hel: $(SRCDIR)/gen.o
-	$(LD) -g $(CXXFLAGS) -o $@ $< $(LIBS)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS) $(LIBCONF)
 
 clean:
 	rm -f $(SRCDIR)/*.o $(PROGRAMS)
