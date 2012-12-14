@@ -32,8 +32,8 @@ treeinfo tree_HEL, tree_RIN, tree_HAP;
 
 FILE *fp1,*fp2,*fp3;
 
-Int_t inserttir(Int_t nrun, Int_t n);
-Int_t construct(Int_t nrun);
+Int_t inserttir(Int_t nrun, Int_t ntir);
+Int_t insertring(Int_t nrun, Int_t nring, Int_t select);
 void usage(int argc, char** argv);
 
 #include "isexist.h"
@@ -107,13 +107,13 @@ int main(int argc,char** argv)
 
     Bool_t configerror = kFALSE;
 
-    Int_t n_data;
+    Int_t ntir;
     setting = config_lookup(&cfg, "tirinfo");
     if (setting!=NULL) {
         strcpy(tree_HEL.name, config_setting_get_string(&setting, "name"));
         strcpy(tree_HEL.prefix, config_setting_get_string(&setting, "prefix"));
         datasetting = config_setting_get_member(&setting, "data");
-        n_data = config_setting_length(datasetting);
+        ntir = config_setting_length(datasetting);
         for (int i=0; i<n; i++) {
             strcpy(tree_HEL.data[i].name, config_setting_get_string_elem(&datasetting, i));
             tree_HEL.data[i].index = config_setting_get_int_elem(&datasetting, i);
@@ -155,53 +155,32 @@ int main(int argc,char** argv)
         exit(-1);
     }
 
-    inserttir(nrun, n_data);
+    inserttir(nrun, ntir);
     insertring(nrun, NRING, 1);
     if (USEHAPPEX) insertring(nrun, NHAPPEX, 2);
-    
-    Int_t filecount=1;
-    Char_t filename[300];
-
-    // if(select==1){
-    //     sprintf(filename,"g2p_%d.root",nrun);
-    //     insert(nrun,filename);
-    //     sprintf(filename,"g2p_%d_%d.root",nrun,filecount);
-    //     while(isexist(filename)){
-    //         insert(nrun,filename);
-    //         filecount++;
-    //         sprintf(filename,"g2p_%d_%d.root",nrun,filecount);
-    //     }
-    // }
-    // else if(select==2)construct(nrun);
     
     return 0;
 }
 
-Int_t inserttir (Int_t nrun, Int_t n_data)
+Int_t inserttir(Int_t nrun, Int_t ntir)
 {
     printf("Opening existed rootfile ...\n");
 
-    if ((fp1 = fopen(Form("%s/hel_%d.dat", INFODIR, nrun), "r"))==NULL){
-        fprintf(stderr, "Can not open %s/hel_%d.dat", INFODIR, nrun);
-        exit(-1);
-    }
-    
     Int_t filecount = 0;
 
     TFile *f = new TFile(Form("%s/g2p_%d.root", ROOTDIR, nrun), "UPDATE");
     while (f.IsOpen()) {
+        if ((fp1 = fopen(Form("%s/hel_%d.dat", INFODIR, nrun), "r"))==NULL) {
+            fprintf(stderr, "Can not open %s/hel_%d.dat", INFODIR, nrun);
+            exit(-1);
+        }
+
         TTree *t = (TTree *)f->Get("T");
 
         THaEvent *event = new THaEvent();
 
         t->SetBranchAddress("Event_Branch", &event);
-
-        Int_t gEvNum;
-
-        TBranch *bHelicity_act, *bHelicity_rep, *bQRT, *bMPS, *bPairSync;
-        TBranch *bTimeStamp, *bSeed, *bError, *bIRing, *bIHappex;
-        TBranch *bDATA[NDATA];
-
+        
         Int_t fHelicity_rep = 0, fHelicity_act = 0;
         Int_t fQRT = 0, fMPS = 0, fPairSync=0;
         Int_t fTimeStamp = 0, fSeed = 0, fError = 0;
@@ -211,455 +190,146 @@ Int_t inserttir (Int_t nrun, Int_t n_data)
 
         TList newBranch;
 
-        newBranch.Add(bHelicity_act);
-        newBranch.Add(bHelicity_rep);
-        newBranch.Add(bQRT);
-        newBranch.Add(bMPS);
-        newBranch.Add(bPairSync);
-        newBranch.Add(bTimeStamp);
-        newBranch.Add(bSeed);
-        newBranch.Add(bError);
-        newBranch.Add(bIRing);
-        newBranch.Add(bIHappex);
-        for (Int_t i=0; i<n_data; i++) newBranch.Add(bDATA[i]);
+        newBranch.Add(t->Branch(Form("%shel_act", tree_HEL.prefix), &fHelicity_act, "hel_act/I"));
+        newBranch.Add(t->Branch(Form("%shel_rep", tree_HEL.prefix), &fHelicity_rep, "hel_rep/I"));
+        newBranch.Add(t->Branch(Form("%sqrt", tree_HEL.prefix), &fQRT, "qrt/I"));
+        newBranch.Add(t->Branch(Form("%smps", tree_HEL.prefix), &fMPS, "mps/I"));
+        newBranch.Add(t->Branch(Form("%spairsync", tree_HEL.prefix), &fPairSync, "pairsync/I"));
+        newBranch.Add(t->Branch(Form("%stimestamp", tree_HEL.prefix), &fTimeStamp, "timestamp/I"));
+        newBranch.Add(t->Branch(Form("%sseed", tree_HEL.prefix), &fSeed, "seed/I"));
+        newBranch.Add(t->Branch(Form("%serror", tree_HEL.prefix), &fError, "error/I"));
+        newBranch.Add(t->Branch(Form("%snring", tree_HEL.prefix), &fIring, "nring/I"));
+        newBranch.Add(t->Branch(Form("%snhappex", tree_HEL.prefix), &fIHappex, "nhappex/I"));
+        for (Int_t i=0; i<ntir; i++) newBranch.Add(t->Branch(Form("%s%s", tree_HEL.prefix, tree_HEL.data[i].name), &fDATA[tree_HEL.data[i].index], Form("%s/I", tree_HEL.data[i].name)));
 
-        map<TBranch*,Int_t> indexmap;
-        for (Int_t i=0; i<n_data; i++) branchmap[bDATA[i]] = tree_HEL.data[i].index;
-
-        map<TBranch*,Int_t*> branchmap;
-        branchmap[bHelicity_act] = &fHelicity_act;
-        branchmap[bHelicity_rep] = &fHelicity_rep;
-        branchmap[bQRT] = &fQRT;
-        branchmap[bMPS] = &fMPS;
-        branchmap[bPairSync] = &fPairSync;
-        branchmap[bTimeStamp] = &fTimeStamp;
-        branchmap[bSeed] = &fSeed;
-        branchmap[bError] = &fError;
-        branchmap[bIRing] = &fIRing;
-        branchmap[bIHappex] = &fIHappex;
-        for (Int_t i=0; i<n_data; i++) branchmap[bDATA[i]] = &fDATA[indexmap[bDATA[i]]];
+        Int_t nentries;
+        Int_t gEvNum = 0;
         
-        TIter next(&newBranch);
-        TBranch* workBranch;
-        while ((workBranch = (TBranch*)next())) {
-            
+        fscanf(fp1, "%d", &N);
+        nentries = t->GetEntries();
+        for (Int_t k=0; k<nentries; k++) {
+            t->GetEntry(k);
+            gEvNum = Int_t(event->GetHeader()->GetEvtNum());
+            if (gEvNum%1000==0) printf("%d\n", gEvNum);
+            do {
+                fscanf(fp1, "%d%d%d%d%d%d%d%x%d%d%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeed, &fError, &fIRing, &fIHappex);
+                for (Int_t l=0; l<NRING+NHAPPEX; l++) {
+                    fscanf(fp1, "%d", &fDATA[l]);
+                }
+            } while((fEvNum!=gEvNum)&&(!feof(fp1)));
+            if (fEvNum!=gEvNum) {
+                fHelicity_rep=0;
+                fHelicity_act=0;
+                fQRT=0;
+                fPairSync=0;
+                fMPS=0;
+                fTimeStamp=0;
+                fSeed=0;
+                fError=0xFF00;
+                fIRing=0;
+                fIHappex=0;
+                for (Int_t l=0; l<NRING+NHAPPEX; l++) {
+                    fDATA[l]=0;
+                }
+            }
+            TIter next(newBranch);
+            TBranch *workBranch;
+            while (workBranch = (TBranch*)next()) {
+                workBranch->Fill();
+            }
         }
-        
-        
 
+        t->Write("", TObject::kOverwrite);
         
+        f->Close();
         
+        f = new TFile(Form("%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount), "UPDATE");
         filecount++;
-        sprintf(filename,"g2p_%d_%d.root",nrun,filecount);
-    }
-    
-    Int_t fEvNum=0;
-    Int_t fT1=0,fT2=0;
-    Int_t fL1A=0;
-    Int_t N=0;
-    Int_t temp[10];
-    Int_t gEvNum=0,gEvNumMin=100000000,gEvNumMax=0;
-    Int_t nentries;
-    THaEvent *event=new THaEvent();
 
-    t->SetBranchAddress("Event_Branch",&event);
-    
-    t1->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"TIR Reported Helicity/I");
-    t1->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"TIR Actual Helicity/I");
-    t1->Branch(Form("hel.%s.qrt",arm),&fQRT,"TIR QRT/I");
-    t1->Branch(Form("hel.%s.mps",arm),&fMPS,"TIR MPS/I");
-    t1->Branch(Form("hel.%s.pairsync",arm),&fPairSync,"TIR PairSync/I");
-    t1->Branch(Form("hel.%s.timestamp",arm),&fTimeStamp,"TIR TimeStamp/I");
-    t1->Branch(Form("hel.%s.seed",arm),&fSeed,"TIR Seed/I");   
-    t1->Branch(Form("hel.%s.error",arm),&fError,"TIR Decode Error/I");
-    t1->Branch(Form("hel.%s.numring",arm),&fIRing,"Event num in the ring/I");   
-    t1->Branch(Form("hel.%s.numhappex",arm),&fIHappex,"Event num in HAPPEX/I");  
-    t1->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-    t1->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-
-    if((arm[0]=='L')||(arm[0]=='R')){
-        t1->Branch(Form("hel.%s.bcmuphappex",arm),&fBCMuph,"Helicity Gated Upstream BCM/I");
-        t1->Branch(Form("hel.%s.bcmdownhappex",arm),&fBCMdownh,"Helicity Gated Downstream BCM/I");
-    }
-    t1->Branch(Form("hel.%s.time",arm),&fTime,"Helicity Gated Time/I");
-
-    fscanf(fp1,"%d",&N);
-    nentries=t->GetEntries();
-    for(Int_t k=0;k<nentries;k++){
-        t->GetEntry(k);
-        gEvNum=Int_t(event->GetHeader()->GetEvtNum());
-        printf("%d\n",gEvNum);
-        if(gEvNum<gEvNumMin)gEvNumMin=gEvNum;
-        if(gEvNum>gEvNumMax)gEvNumMax=gEvNum;
-        do{
-            if((arm[0]=='L')||(arm[0]=='R')){
-                fscanf(fp1,"%d%d%d%d%d%d%d%x%d%d%d%d%d%d%d%d",&temp[0],&fHelicity_act,&fHelicity_rep,&fQRT,&fPairSync,&fMPS,&fTimeStamp,&fSeed,&fError,&fIRing,&fIHappex,&fBCMup,&fBCMdown,&fTime,&fBCMuph,&fBCMdownh);
-            }
-            else{
-                fscanf(fp1,"%d%d%d%d%d%d%d%x%d%d%d%d%d%d",&temp[0],&fHelicity_act,&fHelicity_rep,&fQRT,&fPairSync,&fMPS,&fTimeStamp,&fSeed,&fError,&fIRing,&fIHappex,&fBCMup,&fBCMdown,&fTime);
-            }
-        }while((temp[0]!=gEvNum)&&(!feof(fp1)));
-        if(temp[0]==gEvNum){
-            t1->Fill();
-        }
-        else{
-            fHelicity_rep=0;
-            fHelicity_act=0;
-            fQRT=0;
-            fPairSync=0;
-            fMPS=0;
-            fTimeStamp=0;
-            fSeed=0;
-            fError=0;
-            fIRing=0;
-            fIHappex=0;
-            fBCMup=0;
-            fBCMdown=0;
-            fTime=0;
-            fBCMuph=0;
-            fBCMdownh=0;
-            t1->Fill();
-        }
+        fclose(fp1);
     }
 
-    t1->Write();
-    
-    t2->Branch(Form("hel.%s.evnum",arm),&fEvNum,"Event Number/I");
-    t2->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"Ring Reported Helicity/I");
-    t2->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"Ring Actual Helicity/I");
-    t2->Branch(Form("hel.%s.qrt",arm),&fQRT,"Ring QRT/I");
-    t2->Branch(Form("hel.%s.time",arm),&fTime,"Ring Time/I");
-    t2->Branch(Form("hel.%s.seed",arm),&fSeed,"Ring Seed/I");   
-    t2->Branch(Form("hel.%s.error",arm),&fError,"Ring Decode Error/I");
-    t2->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-    t2->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-    t2->Branch(Form("hel.%s.L1A",arm),&fL1A,"Helicity Gated L1A/I");
-
-    if(arm[0]=='L'){
-        t2->Branch(Form("hel.%s.T3",arm),&fT1,"Helicity Gated T3/I");
-        t2->Branch(Form("hel.%s.T4",arm),&fT2,"Helicity Gated T4/I");
-    }
-    else if(arm[0]=='R'){
-        t2->Branch(Form("hel.%s.T1",arm),&fT1,"Helicity Gated T1/I");
-        t2->Branch(Form("hel.%s.T2",arm),&fT2,"Helicity Gated T2/I");
-    }
-    else if(arm[0]=='T'){
-        t2->Branch(Form("hel.%s.T1",arm),&fT1,"Helicity Gated T1/I");
-    }
-
-    fscanf(fp2,"%d",&N);
-    for(Int_t k=0;k<N;k++){
-        if((arm[0]=='L')||(arm[0]=='R')){
-            fscanf(fp2,"%d%d%d%d%x%d%d%d%d%d%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fTime,&fBCMup,&fBCMdown,&fL1A,&fT1,&fT2,&temp[0]);
-        }
-        else if(arm[0]=='T'){
-            fscanf(fp2,"%d%d%d%d%x%d%d%d%d%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fTime,&fBCMup,&fBCMdown,&fL1A,&fT1,&temp[0]);
-        }
-        if((fEvNum>=gEvNumMin)&&(fEvNum<=gEvNumMax))t2->Fill();
-    }
-
-    t2->Write();
-
-    if((arm[0]=='L')||(arm[0]=='R')){
-        t3->Branch(Form("hel.%s.evnum",arm),&fEvNum,"Event Number/I");
-        t3->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"HAPPEX Reported Helicity/I");
-        t3->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"HAPPEX Actual Helicity/I");
-        t3->Branch(Form("hel.%s.qrt",arm),&fQRT,"HAPPEX QRT/I");
-        t3->Branch(Form("hel.%s.seed",arm),&fSeed,"HAPPEX Seed/I");
-        t3->Branch(Form("hel.%s.error",arm),&fError,"HAPPEX Decode Error/I");
-        t3->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-        t3->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-
-        fscanf(fp3,"%d",&N);
-        for(Int_t k=0;k<N;k++){
-            fscanf(fp3,"%d%d%d%d%x%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fBCMup,&fBCMdown);
-            if((fEvNum>=gEvNumMin)&&(fEvNum<=gEvNumMax))t3->Fill();
-        }
-
-        t3->Write();
-    }
-    
-    f->Close();
-
-    fclose(fp1);
-    fclose(fp2);
-    fclose(fp3);
+    if (filecount==0) return -1;
     
     return 0;
 }
 
-Int_t insert(Int_t nrun,Char_t *filename)
+Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
 {
     printf("Opening existed rootfile ...\n");
 
-    fp1=fopen(Form("hel_%d.dat",nrun),"r");
-    fp2=fopen(Form("helRIN_%d.dat",nrun),"r");
-    fp3=fopen(Form("helHAP_%d.dat",nrun),"r");
-    
-    TFile *f=new TFile(filename,"UPDATE");
+    Int_t filecount = 0;
+    treeinfo *ringtree;
 
-    TTree *t=(TTree *)f->Get("T");
-
-    TTree *t1=new TTree("hel","TIR Helicity Tree");
-    TTree *t2=new TTree("hel_ring","Ring Helicity Tree");
-    TTree *t3=new TTree("hel_happ","HAPPEX Helicity Tree");
-
-    Int_t fHelicity_rep=0,fHelicity_act=0,fQRT=0,fMPS=0,fPairSync=0,fTimeStamp=0,fError=0;
-    Int_t fSeed=0;
-    Int_t fBCMup=0,fBCMdown=0,fTime=0;
-    Int_t fBCMuph=0,fBCMdownh=0;
-    Int_t fIRing=0,fIHappex=0;
-    Int_t fEvNum=0;
-    Int_t fT1=0,fT2=0;
-    Int_t fL1A=0;
-    Int_t N=0;
-    Int_t temp[10];
-    Int_t gEvNum=0,gEvNumMin=100000000,gEvNumMax=0;
-    Int_t nentries;
-    THaEvent *event=new THaEvent();
-
-    t->SetBranchAddress("Event_Branch",&event);
-    
-    t1->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"TIR Reported Helicity/I");
-    t1->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"TIR Actual Helicity/I");
-    t1->Branch(Form("hel.%s.qrt",arm),&fQRT,"TIR QRT/I");
-    t1->Branch(Form("hel.%s.mps",arm),&fMPS,"TIR MPS/I");
-    t1->Branch(Form("hel.%s.pairsync",arm),&fPairSync,"TIR PairSync/I");
-    t1->Branch(Form("hel.%s.timestamp",arm),&fTimeStamp,"TIR TimeStamp/I");
-    t1->Branch(Form("hel.%s.seed",arm),&fSeed,"TIR Seed/I");   
-    t1->Branch(Form("hel.%s.error",arm),&fError,"TIR Decode Error/I");
-    t1->Branch(Form("hel.%s.numring",arm),&fIRing,"Event num in the ring/I");   
-    t1->Branch(Form("hel.%s.numhappex",arm),&fIHappex,"Event num in HAPPEX/I");  
-    t1->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-    t1->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-
-    if((arm[0]=='L')||(arm[0]=='R')){
-        t1->Branch(Form("hel.%s.bcmuphappex",arm),&fBCMuph,"Helicity Gated Upstream BCM/I");
-        t1->Branch(Form("hel.%s.bcmdownhappex",arm),&fBCMdownh,"Helicity Gated Downstream BCM/I");
-    }
-    t1->Branch(Form("hel.%s.time",arm),&fTime,"Helicity Gated Time/I");
-
-    fscanf(fp1,"%d",&N);
-    nentries=t->GetEntries();
-    for(Int_t k=0;k<nentries;k++){
-        t->GetEntry(k);
-        gEvNum=Int_t(event->GetHeader()->GetEvtNum());
-        printf("%d\n",gEvNum);
-        if(gEvNum<gEvNumMin)gEvNumMin=gEvNum;
-        if(gEvNum>gEvNumMax)gEvNumMax=gEvNum;
-        do{
-            if((arm[0]=='L')||(arm[0]=='R')){
-                fscanf(fp1,"%d%d%d%d%d%d%d%x%d%d%d%d%d%d%d%d",&temp[0],&fHelicity_act,&fHelicity_rep,&fQRT,&fPairSync,&fMPS,&fTimeStamp,&fSeed,&fError,&fIRing,&fIHappex,&fBCMup,&fBCMdown,&fTime,&fBCMuph,&fBCMdownh);
+    TFile *f = new TFile(Form("%s/g2p_%d.root", ROOTDIR, nrun), "UPDATE");
+    while (f.IsOpen()) {
+        if (select==1) {
+            if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INFODIR, nrun), "r"))==NULL) {
+                fprintf(stderr, "Can not open %s/helRIN_%d.dat", INFODIR, nrun);
+                exit(-1);
             }
-            else{
-                fscanf(fp1,"%d%d%d%d%d%d%d%x%d%d%d%d%d%d",&temp[0],&fHelicity_act,&fHelicity_rep,&fQRT,&fPairSync,&fMPS,&fTimeStamp,&fSeed,&fError,&fIRing,&fIHappex,&fBCMup,&fBCMdown,&fTime);
+            ringtree = &tree_RIN;
+        }
+        else if (select==2) {
+            if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INFODIR, nrun), "r"))==NULL) {
+                fprintf(stderr, "Can not open %s/helHAP_%d.dat", INFODIR, nrun);
+                exit(-1);
             }
-        }while((temp[0]!=gEvNum)&&(!feof(fp1)));
-        if(temp[0]==gEvNum){
-            t1->Fill();
-        }
-        else{
-            fHelicity_rep=0;
-            fHelicity_act=0;
-            fQRT=0;
-            fPairSync=0;
-            fMPS=0;
-            fTimeStamp=0;
-            fSeed=0;
-            fError=0;
-            fIRing=0;
-            fIHappex=0;
-            fBCMup=0;
-            fBCMdown=0;
-            fTime=0;
-            fBCMuph=0;
-            fBCMdownh=0;
-            t1->Fill();
-        }
-    }
-
-    t1->Write();
-    
-    t2->Branch(Form("hel.%s.evnum",arm),&fEvNum,"Event Number/I");
-    t2->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"Ring Reported Helicity/I");
-    t2->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"Ring Actual Helicity/I");
-    t2->Branch(Form("hel.%s.qrt",arm),&fQRT,"Ring QRT/I");
-    t2->Branch(Form("hel.%s.time",arm),&fTime,"Ring Time/I");
-    t2->Branch(Form("hel.%s.seed",arm),&fSeed,"Ring Seed/I");   
-    t2->Branch(Form("hel.%s.error",arm),&fError,"Ring Decode Error/I");
-    t2->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-    t2->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-    t2->Branch(Form("hel.%s.L1A",arm),&fL1A,"Helicity Gated L1A/I");
-
-    if(arm[0]=='L'){
-        t2->Branch(Form("hel.%s.T3",arm),&fT1,"Helicity Gated T3/I");
-        t2->Branch(Form("hel.%s.T4",arm),&fT2,"Helicity Gated T4/I");
-    }
-    else if(arm[0]=='R'){
-        t2->Branch(Form("hel.%s.T1",arm),&fT1,"Helicity Gated T1/I");
-        t2->Branch(Form("hel.%s.T2",arm),&fT2,"Helicity Gated T2/I");
-    }
-    else if(arm[0]=='T'){
-        t2->Branch(Form("hel.%s.T1",arm),&fT1,"Helicity Gated T1/I");
-    }
-
-    fscanf(fp2,"%d",&N);
-    for(Int_t k=0;k<N;k++){
-        if((arm[0]=='L')||(arm[0]=='R')){
-            fscanf(fp2,"%d%d%d%d%x%d%d%d%d%d%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fTime,&fBCMup,&fBCMdown,&fL1A,&fT1,&fT2,&temp[0]);
-        }
-        else if(arm[0]=='T'){
-            fscanf(fp2,"%d%d%d%d%x%d%d%d%d%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fTime,&fBCMup,&fBCMdown,&fL1A,&fT1,&temp[0]);
-        }
-        if((fEvNum>=gEvNumMin)&&(fEvNum<=gEvNumMax))t2->Fill();
-    }
-
-    t2->Write();
-
-    if((arm[0]=='L')||(arm[0]=='R')){
-        t3->Branch(Form("hel.%s.evnum",arm),&fEvNum,"Event Number/I");
-        t3->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"HAPPEX Reported Helicity/I");
-        t3->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"HAPPEX Actual Helicity/I");
-        t3->Branch(Form("hel.%s.qrt",arm),&fQRT,"HAPPEX QRT/I");
-        t3->Branch(Form("hel.%s.seed",arm),&fSeed,"HAPPEX Seed/I");
-        t3->Branch(Form("hel.%s.error",arm),&fError,"HAPPEX Decode Error/I");
-        t3->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-        t3->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-
-        fscanf(fp3,"%d",&N);
-        for(Int_t k=0;k<N;k++){
-            fscanf(fp3,"%d%d%d%d%x%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fBCMup,&fBCMdown);
-            if((fEvNum>=gEvNumMin)&&(fEvNum<=gEvNumMax))t3->Fill();
+            ringtree = &tree_HAP;   
         }
 
-        t3->Write();
-    }
-    
-    f->Close();
+        Int_t fHelicity_rep = 0, fHelicity_act = 0, fQRT = 0;
+        Int_t fSeed = 0, fError = 0;
+        Int_t fDATA[NDATA];
 
-    fclose(fp1);
-    fclose(fp2);
-    fclose(fp3);
-    
-    return 0;
-}
+        TTree *t = new TTree(ringtree->name, ringtree->name);
 
-Int_t construct(Int_t nrun)
-{
-    printf("Generating a new rootfile ...\n");
+        t->Branch(Form("%shel_act", ringtree->prefix), &fHelicity_act, "hel_act/I");
+        t->Branch(Form("%shel_rep", ringtree->prefix), &fHelicity_rep, "hel_rep/I");
+        t->Branch(Form("%sqrt", ringtree->prefix), &fQRT, "qrt/I");
+        t->Branch(Form("%sseed", ringtree->prefix), &fSeed, "seed/I");
+        t->Branch(Form("%serror", ringtree->prefix), &fError, "error/I");
+        for (Int_t i=0; i<nring; i++) t->Branch(Form("%s%s", ringtree->prefix, ringtree->data[i].name), &fDATA[i], Form("%s/I", ringtree->data[i].name));
 
-    fp1=fopen(Form("hel_%d.dat",nrun),"r");
-    fp2=fopen(Form("helRIN_%d.dat",nrun),"r");
-    fp3=fopen(Form("helHAP_%d.dat",nrun),"r");
+        Int_t nentries;
+        Int_t gEvNum = 0, gEvNumMax = 0, gEvNumMin = 0;
 
-    TFile *f=new TFile(Form("hel_%d.root",nrun),"RECREATE");
+        TTree *ori = (TTree *)f->Get("T");
 
-    TTree *t1=new TTree("hel","TIR Helicity Tree");
-    TTree *t2=new TTree("hel_ring","Ring Helicity Tree");
-    TTree *t3=new TTree("hel_happ","HAPPEX Helicity Tree");
+        THaEvent *event = new THaEvent();
+        ori->SetBranchAddress("Event_Branch", &event);
 
-    Int_t fHelicity_rep=0,fHelicity_act=0,fQRT=0,fMPS=0,fPairSync=0,fTimeStamp=0,fError=0;
-    Int_t fSeed=0;
-    Int_t fBCMup=0,fBCMdown=0,fTime=0;
-    Int_t fBCMuph=0,fBCMdownh=0;
-    Int_t fIRing=0,fIHappex=0;
-    Int_t fEvNum=0;
-    Int_t fT1=0,fT2=0;
-    Int_t fL1A=0;
-    Int_t N=0;
-    Int_t temp[10];
+        nentries = ori->GetEntries();
 
-    t1->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"TIR Reported Helicity/I");
-    t1->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"TIR Actual Helicity/I");
-    t1->Branch(Form("hel.%s.qrt",arm),&fQRT,"TIR QRT/I");
-    t1->Branch(Form("hel.%s.mps",arm),&fMPS,"TIR MPS/I");
-    t1->Branch(Form("hel.%s.pairsync",arm),&fPairSync,"TIR PairSync/I");
-    t1->Branch(Form("hel.%s.timestamp",arm),&fTimeStamp,"TIR TimeStamp/I");
-    t1->Branch(Form("hel.%s.seed",arm),&fSeed,"TIR Seed/I");   
-    t1->Branch(Form("hel.%s.error",arm),&fError,"TIR Decode Error/I");
-    t1->Branch(Form("hel.%s.numring",arm),&fIRing,"Event num in the ring/I");   
-    t1->Branch(Form("hel.%s.numhappex",arm),&fIHappex,"Event num in HAPPEX/I");  
-    t1->Branch(Form("hel.%s.bcmupring",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-    t1->Branch(Form("hel.%s.bcmdownring",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-    if((arm[0]=='L')||(arm[0]=='R')){
-        t1->Branch(Form("hel.%s.bcmuphappex",arm),&fBCMuph,"Helicity Gated Upstream BCM/I");
-        t1->Branch(Form("hel.%s.bcmdownhappex",arm),&fBCMdownh,"Helicity Gated Downstream BCM/I");
-    }
-    t1->Branch(Form("hel.%s.time",arm),&fTime,"Helicity Gated Time/I");
+        ori->GetEntry(0);
+        gEvNumMin = Int_t(event->GetHeader()->GetEvtNum());
+        ori->GetEntry(nentries-1);
+        gEvNumMax = Int_t(event->GetHeader()->GetEvtNum());
 
-    fscanf(fp1,"%d",&N);
-    for(Int_t k=0;k<N;k++){
-        if((arm[0]=='L')||(arm[0]=='R')){
-            fscanf(fp1,"%d%d%d%d%d%d%d%x%d%d%d%d%d%d%d%d",&temp[0],&fHelicity_act,&fHelicity_rep,&fQRT,&fPairSync,&fMPS,&fTimeStamp,&fSeed,&fError,&fIRing,&fIHappex,&fBCMup,&fBCMdown,&fTime,&fBCMuph,&fBCMdownh);           
-        }
-        else{
-            fscanf(fp1,"%d%d%d%d%d%d%d%x%d%d%d%d%d%d",&temp[0],&fHelicity_act,&fHelicity_rep,&fQRT,&fPairSync,&fMPS,&fTimeStamp,&fSeed,&fError,&fIRing,&fIHappex,&fBCMup,&fBCMdown,&fTime);
-        }
-        t1->Fill();
-    }
+        ori=NULL;
 
-    t1->Write();
-    
-    t2->Branch(Form("hel.%s.evnum",arm),&fEvNum,"Event Number/I");
-    t2->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"Ring Reported Helicity/I");
-    t2->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"Ring Actual Helicity/I");
-    t2->Branch(Form("hel.%s.qrt",arm),&fQRT,"Ring QRT/I");
-    t2->Branch(Form("hel.%s.time",arm),&fTime,"Ring Time/I");
-    t2->Branch(Form("hel.%s.seed",arm),&fSeed,"Ring Seed/I");   
-    t2->Branch(Form("hel.%s.error",arm),&fError,"Ring Decode Error/I");
-    t2->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-    t2->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-    t2->Branch(Form("hel.%s.L1A",arm),&fL1A,"Helicity Gated L1A/I");
-
-    if(arm[0]=='L'){
-        t2->Branch(Form("hel.%s.T3",arm),&fT1,"Helicity Gated T3/I");
-        t2->Branch(Form("hel.%s.T4",arm),&fT2,"Helicity Gated T4/I");
-    }
-    else if(arm[0]=='R'){
-        t2->Branch(Form("hel.%s.T1",arm),&fT1,"Helicity Gated T1/I");
-        t2->Branch(Form("hel.%s.T2",arm),&fT2,"Helicity Gated T2/I");
-    }
-    else if(arm[0]=='T'){
-        t2->Branch(Form("hel.%s.T1",arm),&fT1,"Helicity Gated T1/I");
-    }
-
-    fscanf(fp2,"%d",&N);
-    for(Int_t k=0;k<N;k++){
-        if((arm[0]=='L')||(arm[0]=='R')){
-            fscanf(fp2,"%d%d%d%d%x%d%d%d%d%d%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fTime,&fBCMup,&fBCMdown,&fL1A,&fT1,&fT2,&temp[0]);
-        }
-        else if(arm[0]=='T'){
-            fscanf(fp2,"%d%d%d%d%x%d%d%d%d%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fTime,&fBCMup,&fBCMdown,&fL1A,&fT1,&temp[0]);
-        }
-        t2->Fill();
-    }
-
-    t2->Write();
-
-    if((arm[0]=='L')||(arm[0]=='R')){
-        t3->Branch(Form("hel.%s.evnum",arm),&fEvNum,"Event Number/I");
-        t3->Branch(Form("hel.%s.hel_rep",arm),&fHelicity_rep,"HAPPEX Reported Helicity/I");
-        t3->Branch(Form("hel.%s.hel_act",arm),&fHelicity_act,"HAPPEX Actual Helicity/I");
-        t3->Branch(Form("hel.%s.qrt",arm),&fQRT,"HAPPEX QRT/I");
-        t3->Branch(Form("hel.%s.seed",arm),&fSeed,"HAPPEX Seed/I");
-        t3->Branch(Form("hel.%s.error",arm),&fError,"HAPPEX Decode Error/I");
-        t3->Branch(Form("hel.%s.bcmup",arm),&fBCMup,"Helicity Gated Upstream BCM/I");
-        t3->Branch(Form("hel.%s.bcmdown",arm),&fBCMdown,"Helicity Gated Downstream BCM/I");
-
-        fscanf(fp3,"%d",&N);
-        for(Int_t k=0;k<N;k++){
-            fscanf(fp3,"%d%d%d%d%x%d%d%d",&fEvNum,&fHelicity_act,&fHelicity_rep,&fQRT,&fSeed,&fError,&fBCMup,&fBCMdown);
-            t3->Fill();
+        fscanf(fp1, "%d", &N);
+        for (Int_t k=0; k<N; k++) {
+            if (k%1000==0) printf("%d\n", k);
+            fscanf(fp1, "%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fSeed, &fError);
+            for (Int_t l=0; l<nring; l++) {
+                fscanf(fp1, "%d", &fDATA[l]);
+            }
+            if ((fEvNum>=gEvNumMin)&&(fEvNum<=gEvNumMax)) t->Fill();
+            if (fEvNum>gEvNumMax) break;
         }
 
-        t3->Write();
-    }
-    
-    f->Close();
+        t->Write("", TObject::kOverwrite);
+        
+        f->Close();
+        
+        f = new TFile(Form("%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount), "UPDATE");
+        filecount++;
 
-    fclose(fp1);
-    fclose(fp2);
-    fclose(fp3);
+        fclose(fp1);
+    }
+
+    if (filecount==0) return -1;
     
     return 0;
 }

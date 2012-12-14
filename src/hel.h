@@ -1,8 +1,8 @@
 #define MAXMISSED 300
 #define LEN 15000000
 
-Int_t NRING;
-Int_t NHAPPEX;
+Int_t NRING = 0;
+Int_t NHAPPEX = 0;
 Int_t NDELAY;
 Int_t MAXBIT;
 Double_t WT;
