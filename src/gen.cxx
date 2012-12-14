@@ -93,6 +93,7 @@ int main(int argc,char** argv)
 
     config_t cfg;
     config_setting_t *setting;
+    config_setting_t *dataelem;
 
     config_init(&cfg);
 
@@ -115,9 +116,10 @@ int main(int argc,char** argv)
         setting = config_lookup(&cfg, "tirinfo.data");
         ntir = config_setting_length(setting);
         for (int i=0; i<ntir; i++) {
-            config_setting_lookup_string(setting, "name", &temp);
+            dataelem=config_setting_get_elem(setting, i);
+            config_setting_lookup_string(dataelem, "name", &temp);
             strcpy(tree_HEL.data[i].name, temp);
-            config_setting_lookup_int(setting, "index", &tree_HEL.data[i].index);
+            config_setting_lookup_int(dataelem, "index", &tree_HEL.data[i].index);
         }
     }
     else configerror = kTRUE;
@@ -131,8 +133,7 @@ int main(int argc,char** argv)
         setting = config_lookup(&cfg, "ringinfo.data");
         NRING = config_setting_length(setting);
         for (int i=0; i<NRING; i++) {
-            config_setting_lookup_string(setting, "name", &temp);
-            strcpy(tree_RIN.data[i].name, temp);
+            strcpy(tree_RIN.data[i].name, config_setting_get_string_elem(setting, i));
             tree_RIN.data[i].index = -1;
         }
     }
@@ -148,8 +149,7 @@ int main(int argc,char** argv)
         setting = config_lookup(&cfg, "happexinfo.data");
         NHAPPEX = config_setting_length(setting);
         for (int i=0; i<NHAPPEX; i++) {
-            config_setting_lookup_string(setting, "name", &temp);
-            strcpy(tree_RIN.data[i].name, temp);
+            strcpy(tree_HAP.data[i].name, config_setting_get_string_elem(setting, i));
             tree_HAP.data[i].index = -1;
         }
     }
@@ -174,9 +174,13 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
     printf("Opening existed rootfile ...\n");
 
     Int_t filecount = 0;
+    Char_t filename[300];
 
-    TFile *f = new TFile(Form("%s/g2p_%d.root", ROOTDIR, nrun), "UPDATE");
-    while (f->IsOpen()) {
+    sprintf(filename, "%s/g2p_%d.root", ROOTDIR, nrun);
+
+    while (isexist(filename)) {
+        TFile *f = new TFile(filename, "UPDATE");
+        
         if ((fp1 = fopen(Form("%s/hel_%d.dat", INFODIR, nrun), "r"))==NULL) {
             fprintf(stderr, "Can not open %s/hel_%d.dat", INFODIR, nrun);
             exit(-1);
@@ -248,9 +252,10 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         t->Write("", TObject::kOverwrite);
         
         f->Close();
-        
-        f = new TFile(Form("%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount), "UPDATE");
+
         filecount++;
+
+        sprintf(filename, "%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount);
 
         fclose(fp1);
     }
@@ -265,10 +270,12 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
     printf("Opening existed rootfile ...\n");
 
     Int_t filecount = 0;
+    Char_t filename[300];
     treeinfo *ringtree = NULL;
 
-    TFile *f = new TFile(Form("%s/g2p_%d.root", ROOTDIR, nrun), "UPDATE");
-    while (f->IsOpen()) {
+    sprintf(filename, "%s/g2p_%d.root", ROOTDIR, nrun);
+    while (isexist(filename)) {
+        TFile *f = new TFile(filename, "UPDATE");
         if (select==1) {
             if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INFODIR, nrun), "r"))==NULL) {
                 fprintf(stderr, "Can not open %s/helRIN_%d.dat", INFODIR, nrun);
@@ -291,6 +298,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
 
         TTree *t = new TTree(ringtree->name, ringtree->name);
 
+        t->Branch(Form("%sevnum", ringtree->prefix), &fEvNum, "evnum/I");
         t->Branch(Form("%shel_act", ringtree->prefix), &fHelicity_act, "hel_act/I");
         t->Branch(Form("%shel_rep", ringtree->prefix), &fHelicity_rep, "hel_rep/I");
         t->Branch(Form("%sqrt", ringtree->prefix), &fQRT, "qrt/I");
@@ -310,9 +318,14 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
 
         ori->GetEntry(0);
         gEvNumMin = Int_t(event->GetHeader()->GetEvtNum());
-        ori->GetEntry(nentries-1);
-        gEvNumMax = Int_t(event->GetHeader()->GetEvtNum());
-
+        ori->GetEntry(nentries-10);
+        gEvNumMax = Int_t(event->GetHeader()->GetEvtNum());       
+        for (Int_t i=9; i>=1; i--){
+            ori->GetEntry(nentries-i);
+            Int_t temp = Int_t(event->GetHeader()->GetEvtNum());
+            if (temp==gEvNumMax+1) gEvNumMax=temp;
+        }
+        
         ori=NULL;
 
         fscanf(fp1, "%d", &N);
@@ -329,9 +342,10 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
         t->Write("", TObject::kOverwrite);
         
         f->Close();
-        
-        f = new TFile(Form("%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount), "UPDATE");
+
         filecount++;
+
+        sprintf(filename, "%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount);
 
         fclose(fp1);
     }

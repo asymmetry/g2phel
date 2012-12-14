@@ -1,5 +1,8 @@
 g2p Helicity Decoder
 
+V1.1
+First Release version. Each small tools now take command line parameters. Add some kind of database file based on libconfig. Also the algorithm in align.cxx and gen.cxx have been tuned to increase the code reusability.
+
 V1.0 (RC1)
 Release Condidate 1 version. Added backward decode for ring buffer. TIR decode now have 2 modes, one is normal, the other one will read ring buffer information for quick seed recovery.
 
