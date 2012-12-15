@@ -58,7 +58,7 @@ clean:
 	rm -f $(SRCDIR)/*.o $(PROGRAMS)
 
 release:
-	tar cvzf helicity.tar.gz HISTORY Makefile src --exclude=*.o
+	tar cvzf helicity.tar.gz HISTORY Makefile src helicity.sh --exclude=*.o
 
 $(SRCDIR)/%.o:	$(SRCDIR)/%.cxx
 	$(CXX) $(CXXFLAGS) -o $@ -c $<

@@ -11,13 +11,19 @@
 *.la
 *.a
 
+# Excutables
 align
 gen_hel
 decode
 ring
 tir
+
+# Work Directory
 raw
 rootfiles
-jobfiles
+jobfiles/
+
+# Possibly large file
 *.tar.gz
 hel*.dat
+g2p_*.dat.*
