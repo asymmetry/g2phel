@@ -249,7 +249,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
             }
         }
 
-        t->Write("", TObject::kOverwrite);
+        f->Write("", TObject::kOverwrite);
         
         f->Close();
 
@@ -339,7 +339,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
             if (fEvNum>gEvNumMax) break;
         }
 
-        t->Write("", TObject::kOverwrite);
+        f->Write("", TObject::kOverwrite);
         
         f->Close();
 
