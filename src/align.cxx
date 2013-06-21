@@ -201,7 +201,6 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
     Char_t temp[300];
     Int_t fSeedTIR_rep = 0, fPhaseTIR = 0, fPolarityTIR_rep = 0;
     Int_t pLastp = 0, pLastm = 0;
-//    Int_t fBCMRingu,fBCMRingd,fTimeStampRing;
     Int_t fDATA[8];
     Bool_t fNewFlag = kTRUE;
     Int_t N = 0;
@@ -245,7 +244,6 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                         && (gSeed_rep[pLastp + 1] == fSeedTIR_rep))) {
                     fError = fError | 0x20;
                     fNewFlag = kTRUE;
-//                    fprintf(fp2,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%d\t%d\t%d\t%d\t%d\n",fEvNum,fHelicity_act,fHelicity_rep,fQRT,fPairSync,fMPS,fTimeStamp,fSeedTIR_rep,fError,temp[1],temp[2],fBCMRingu,fBCMRingd,fTimeStampRing);
                     fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t",
                             fEvNum, fHelicity_act, fHelicity_rep, fQRT,
                             fPairSync, fMPS, fTimeStamp, fSeedTIR_rep, fError,
@@ -275,7 +273,6 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                     }
                     if ((gPhase[pLastp] == fPhaseTIR)
                             && (gSeed_rep[pLastp] == fSeedTIR_rep)) {
-                        fError = fError;
                     }
                     else {
                         fError = fError | 0x10;
@@ -300,7 +297,6 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                     }
                     if ((gPhase[pLastm] == fPhaseTIR)
                             && (gSeed_rep[pLastm] == fSeedTIR_rep)) {
-                        fError = fError;
                     }
                     else {
                         fError = fError | 0x10;
@@ -310,13 +306,11 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
             }
         }
         else if (fError == 8) {
-            fError = fError;
         }
         else {
-            fError = fError;
             fNewFlag = kTRUE;
         }
-//        fprintf(fp2,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%d\t%d\t%d\t%d\t%d\n",fEvNum,fHelicity_act,fHelicity_rep,fQRT,fPairSync,fMPS,fTimeStamp,fSeedTIR_rep,fError,temp[1],temp[2],fBCMRingu,fBCMRingd,fTimeStampRing);
+
         fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum,
                 fHelicity_act, fHelicity_rep, fQRT, fPairSync, fMPS, fTimeStamp,
                 fSeedTIR_rep, fError, temp);

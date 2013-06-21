@@ -20,9 +20,10 @@ Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
 Int_t predictring(Int_t nrun);
+Int_t delayring(Int_t ndelay);
 Int_t printout(Int_t nrun, Int_t nring, Int_t select);
 Int_t RanBit30(Int_t &runseed);
-Int_t BitRan30(Int_t &runseed);
+Int_t BitRan30(Int_t &runseed); // reversal prediction
 void usage(int argc, char** argv);
 
 Char_t CFGFILE[300] = "./config.cfg";
@@ -98,20 +99,24 @@ int main(int argc, char** argv) {
         configerror = kTRUE;
     }
 
+    Int_t delayRIN;
     setting = config_lookup(&cfg, "ringinfo.data");
     if (setting != NULL) {
         NRING = config_setting_length(setting);
+        config_lookup_int(&cfg, "ringinfo.delay", &delayRIN);
     }
     else
         configerror = kTRUE;
+
+    Int_t delayHAP;
     setting = config_lookup(&cfg, "happexinfo.data");
     if (setting != NULL) {
         USEHAPPEX = kTRUE;
         NHAPPEX = config_setting_length(setting);
+        config_lookup_int(&cfg, "happexinfo.delay", &delayHAP);
     }
-    else {
+    else
         USEHAPPEX = kFALSE;
-    }
 
     if (configerror) {
         fprintf(stderr, "Invalid cfg file\n");
@@ -120,10 +125,12 @@ int main(int argc, char** argv) {
 
     readin(nrun, NRING, 1);
     predictring(nrun);
+    delayring(delayRIN);
     printout(nrun, NRING, 1);
     if (USEHAPPEX) {
         readin(nrun, NHAPPEX, 2);
         predictring(nrun);
+        delayring(delayHAP);
         printout(nrun, NHAPPEX, 2);
     }
 
@@ -291,6 +298,43 @@ Int_t predictring(Int_t nrun) {
     return 0;
 }
 
+Int_t delayring(Int_t ndelay) {
+    if (ndelay > 0) {
+        for (Int_t i = 0; i < gN - ndelay; i++) {
+            gHelicity_rep[i] = gHelicity_rep[i + ndelay];
+            gHelicity_act[i] = gHelicity_act[i + ndelay];
+            gQRT[i] = gQRT[i + ndelay];
+            gSeed_rep[i] = gSeed_rep[i + ndelay];
+            gError[i] = gError[i + ndelay];
+        }
+        for (Int_t i = gN - ndelay; i < gN; i++) {
+            gHelicity_rep[i] = 0;
+            gHelicity_act[i] = 0;
+            gQRT[i] = 0;
+            gSeed_rep[i] = 0;
+            gError[i] = 32;
+        }
+    }
+    else if (ndelay < 0) {
+        for (Int_t i = gN - 1; i >= -ndelay; i--) {
+            gHelicity_rep[i] = gHelicity_rep[i + ndelay];
+            gHelicity_act[i] = gHelicity_act[i + ndelay];
+            gQRT[i] = gQRT[i + ndelay];
+            gSeed_rep[i] = gSeed_rep[i + ndelay];
+            gError[i] = gError[i + ndelay];
+        }
+        for (Int_t i = -ndelay - 1; i >= 0; i--) {
+            gHelicity_rep[i] = 0;
+            gHelicity_act[i] = 0;
+            gQRT[i] = 0;
+            gSeed_rep[i] = 0;
+            gError[i] = 32;
+        }
+    }
+
+    return 0;
+}
+
 Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     if (select == 1) {
         if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r"))
@@ -337,8 +381,8 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     return 0;
 }
 
-Int_t RanBit30(Int_t& ranseed) {
-    // Take 7,28,29,30 bit of ranseed out
+Int_t RanBit30(Int_t & ranseed) {
+// Take 7,28,29,30 bit of ranseed out
     UInt_t bit7 = ((ranseed & 0x00000040) != 0);
     UInt_t bit28 = ((ranseed & 0x08000000) != 0);
     UInt_t bit29 = ((ranseed & 0x10000000) != 0);
@@ -354,9 +398,9 @@ Int_t RanBit30(Int_t& ranseed) {
     return newbit;
 }
 
-Int_t BitRan30(Int_t& ranseed) {
-    // Take 1,8,29,30 bit of ranseed out
-    // Backward predict
+Int_t BitRan30(Int_t & ranseed) {
+// Take 1,8,29,30 bit of ranseed out
+// Backward predict
 
     UInt_t bit1 = ((ranseed & 0x00000001) != 0);
     UInt_t bit8 = ((ranseed & 0x00000080) != 0);
