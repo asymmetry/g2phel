@@ -19,8 +19,8 @@ Int_t gError[LEN];
 Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
-Int_t predictring(Int_t nrun);
-Int_t delayring(Int_t ndelay);
+Int_t predictring(Int_t nrun, Int_t select);
+Int_t delayring(Int_t ndelay, Int_t select);
 Int_t printout(Int_t nrun, Int_t nring, Int_t select);
 Int_t RanBit30(Int_t &runseed);
 Int_t BitRan30(Int_t &runseed); // reversal prediction
@@ -124,13 +124,13 @@ int main(int argc, char** argv) {
     }
 
     readin(nrun, NRING, 1);
-    predictring(nrun);
-    delayring(delayRIN);
+    predictring(nrun, 1);
+    delayring(delayRIN, 1);
     printout(nrun, NRING, 1);
     if (USEHAPPEX) {
         readin(nrun, NHAPPEX, 2);
-        predictring(nrun);
-        delayring(delayHAP);
+        predictring(nrun, 2);
+        delayring(delayHAP, 2);
         printout(nrun, NHAPPEX, 2);
     }
 
@@ -177,7 +177,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
     return 0;
 }
 
-Int_t predictring(Int_t nrun) {
+Int_t predictring(Int_t nrun, Int_t select) {
     printf("Predicting helicity information ...\n");
 
     Int_t fPhaseRing_rep = 0;
@@ -198,7 +198,7 @@ Int_t predictring(Int_t nrun) {
         }
         if (fPhaseRing_rep >= 4) {
             fNSeedRing = 0;
-            gError[i] |= 0x04;
+            gError[i] |= (0x01 << (select * 4));
         }
 
         if ((fNSeedRing == MAXBIT) && gQRT[i] == 1) {
@@ -206,7 +206,7 @@ Int_t predictring(Int_t nrun) {
             fPolarityRing_act = RanBit30(fSeedRing_act);
             if (fPolarityRing_rep != gHelicity_rep[i]) {
                 fNSeedRing = 0;
-                gError[i] |= 0x02;
+                gError[i] |= (0x02 << (select * 4));
             }
         }
 
@@ -238,7 +238,7 @@ Int_t predictring(Int_t nrun) {
             gSeed_rep[i] = fSeedRing_rep;
         }
         else {
-            gError[i] |= 0x01;
+            gError[i] |= (0x01 << (select * 4));
             gSeed_rep[i] = 0;
             gHelicity_act[i] = 0;
         }
@@ -298,7 +298,7 @@ Int_t predictring(Int_t nrun) {
     return 0;
 }
 
-Int_t delayring(Int_t ndelay) {
+Int_t delayring(Int_t ndelay, Int_t select) {
     if (ndelay > 0) {
         for (Int_t i = 0; i < gN - ndelay; i++) {
             gHelicity_rep[i] = gHelicity_rep[i + ndelay];
@@ -312,7 +312,7 @@ Int_t delayring(Int_t ndelay) {
             gHelicity_act[i] = 0;
             gQRT[i] = 0;
             gSeed_rep[i] = 0;
-            gError[i] = 32;
+            gError[i] |= (0x08 << (select * 4));
         }
     }
     else if (ndelay < 0) {
@@ -328,7 +328,7 @@ Int_t delayring(Int_t ndelay) {
             gHelicity_act[i] = 0;
             gQRT[i] = 0;
             gSeed_rep[i] = 0;
-            gError[i] = 32;
+            gError[i] |= (0x08 << (select * 4));
         }
     }
 

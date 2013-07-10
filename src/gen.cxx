@@ -198,7 +198,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
         Int_t fTimeStamp = 0, fSeed = 0, fError = 0;
         Int_t fIRing = 0, fIHappex = 0;
         Int_t fDATA[NDATA];
-        Int_t fEvNum;
+        Int_t fEvNum = -100;
 
         TList newBranch;
 
@@ -246,14 +246,14 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
             t->GetEntry(k);
             gEvNum = Int_t(event->GetHeader()->GetEvtNum());
             if (gEvNum % 1000 == 0) printf("%d\n", gEvNum);
-            do {
+            while ((fEvNum < gEvNum) && (!feof(fp1))) {
                 fscanf(fp1, "%d%d%d%d%d%d%d%x%d%d%d", &fEvNum, &fHelicity_act,
                         &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp,
                         &fSeed, &fError, &fIRing, &fIHappex);
                 for (Int_t l = 0; l < NRING + NHAPPEX; l++) {
                     fscanf(fp1, "%d", &fDATA[l]);
                 }
-            } while ((fEvNum != gEvNum) && (!feof(fp1)));
+            }
             if (fEvNum != gEvNum) {
                 fHelicity_rep = 0;
                 fHelicity_act = 0;
@@ -262,7 +262,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
                 fMPS = 0;
                 fTimeStamp = 0;
                 fSeed = 0;
-                fError = 0xFF00;
+                fError = 0x8000;
                 fIRing = 0;
                 fIHappex = 0;
                 for (Int_t l = 0; l < NRING + NHAPPEX; l++) {

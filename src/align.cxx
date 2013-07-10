@@ -23,6 +23,7 @@ Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
 Int_t align(Int_t nrun, Int_t nring, Int_t select);
+Int_t printout(Int_t nrun, Int_t nring, Int_t select);
 void usage(int argc, char** argv);
 
 Char_t CFGFILE[300] = "./config.cfg";
@@ -115,13 +116,14 @@ int main(int argc, char** argv) {
 
     readin(nrun, NRING, 1);
     align(nrun, NRING, 1);
+    printout(nrun, NRING, 1);
 
     if (USEHAPPEX) {
-        gSystem->Exec(
-                Form("mv -vf %s/hel_%d.dat %s/helTIR_%d.nohapp.dat", OUTDIR,
-                        nrun, INDIR, nrun));
+        gSystem->Rename(Form("%s/hel_%d.dat", OUTDIR, nrun),
+                Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun));
         readin(nrun, NHAPPEX, 2);
         align(nrun, NHAPPEX, 2);
+        printout(nrun, NHAPPEX, 2);
     }
 
     return 0;
@@ -230,8 +232,8 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                 fPhaseTIR = 1;
             }
             if (fNewFlag) {
-                for (Int_t i = (pLastp < pLastm) ? pLastp : pLastm + 1; i < gN;
-                        i++) {
+                for (Int_t i = ((pLastp > pLastm) ? pLastp : pLastm) + 1;
+                        i < gN; i++) {
                     if ((gPhase[i] == fPhaseTIR)
                             && (gSeed_rep[i] == fSeedTIR_rep)) {
                         pLastp = i - 1;
@@ -239,10 +241,12 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                         fNewFlag = kFALSE;
                         break;
                     }
+                    else
+                        gError[i] |= 0x80;
                 }
                 if (!((gPhase[pLastp + 1] == fPhaseTIR)
                         && (gSeed_rep[pLastp + 1] == fSeedTIR_rep))) {
-                    fError = fError | 0x20;
+                    fError = fError | (0x1000 * select);
                     fNewFlag = kTRUE;
                     fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t",
                             fEvNum, fHelicity_act, fHelicity_rep, fQRT,
@@ -267,15 +271,14 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                         }
                         if ((gPhase[i] == fPhaseTIR)
                                 && (gSeed_rep[i] == fSeedTIR_rep)) {
+                            fError = fError | gError[i];
                             pLastp = i;
                             break;
                         }
                     }
-                    if ((gPhase[pLastp] == fPhaseTIR)
-                            && (gSeed_rep[pLastp] == fSeedTIR_rep)) {
-                    }
-                    else {
-                        fError = fError | 0x10;
+                    if (!((gPhase[pLastp] == fPhaseTIR)
+                            && (gSeed_rep[pLastp] == fSeedTIR_rep))) {
+                        fError = fError | (0x1000 * select);
                         fNewFlag = kTRUE;
                     }
                 }
@@ -291,21 +294,20 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                         }
                         if ((gPhase[i] == fPhaseTIR)
                                 && (gSeed_rep[i] == fSeedTIR_rep)) {
+                            fError = fError | gError[i];
                             pLastm = i;
                             break;
                         }
                     }
-                    if ((gPhase[pLastm] == fPhaseTIR)
-                            && (gSeed_rep[pLastm] == fSeedTIR_rep)) {
-                    }
-                    else {
-                        fError = fError | 0x10;
+                    if (!((gPhase[pLastm] == fPhaseTIR)
+                            && (gSeed_rep[pLastm] == fSeedTIR_rep))) {
+                        fError = fError | (0x1000 * select);
                         fNewFlag = kTRUE;
                     }
                 }
             }
         }
-        else if (fError == 8) {
+        else if (fError | 0x0F == 0x08) {
         }
         else {
             fNewFlag = kTRUE;
@@ -323,6 +325,63 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
 
     fclose(fp1);
     fclose(fp2);
+
+    return 0;
+}
+
+Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
+    if (select == 1) {
+        if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
+            exit(-1);
+        }
+        if ((fp2 = fopen(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun), "w"))
+                == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.appcor.dat", OUTDIR,
+                    nrun);
+            exit(-1);
+        }
+    }
+    else if (select == 2) {
+        if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.dat", INDIR, nrun);
+            exit(-1);
+        }
+        if ((fp2 = fopen(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun), "w"))
+                == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.appcor.dat", OUTDIR,
+                    nrun);
+            exit(-1);
+        }
+    }
+
+    Int_t temp[10];
+
+    fscanf(fp1, "%d", &temp[0]);
+    fprintf(fp2, "%d\n", gN);
+    for (Int_t i = 0; i < gN; i++) {
+        fscanf(fp1, "%d%d%d%d%x%d", &temp[0], &temp[1], &temp[2], &temp[3],
+                &temp[4], &temp[5]);
+        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2],
+                temp[3], temp[4], gError[i]);
+        for (Int_t k = 0; k < nring; k++) {
+            fscanf(fp1, "%d", &temp[6]);
+            fprintf(fp2, "\t%d", temp[6]);
+        }
+        fprintf(fp2, "\n");
+    }
+
+    fclose(fp1);
+    fclose(fp2);
+
+    if (select == 1) {
+        gSystem->Rename(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun),
+                Form("%s/helRIN_%d.dat", OUTDIR, nrun));
+    }
+    else if (select == 2) {
+        gSystem->Rename(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun),
+                Form("%s/helHAP_%d.dat", OUTDIR, nrun));
+    }
 
     return 0;
 }
