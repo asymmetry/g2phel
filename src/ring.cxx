@@ -35,11 +35,12 @@ int main(int argc, char** argv) {
 
     while (1) {
         static struct option long_options[] = {
-                { "help", no_argument, 0, 'h' },
-                { "cfgfile", required_argument, 0, 'c' },
-                { "indir", required_argument, 0, 'i' },
-                { "outdir", required_argument, 0, 'o' },
-                { 0, 0, 0, 0 } };
+            { "help", no_argument, 0, 'h'},
+            { "cfgfile", required_argument, 0, 'c'},
+            { "indir", required_argument, 0, 'i'},
+            { "outdir", required_argument, 0, 'o'},
+            { 0, 0, 0, 0}
+        };
 
         int option_index = 0;
 
@@ -85,19 +86,15 @@ int main(int argc, char** argv) {
     config_init(&cfg);
 
     if (!config_read_file(&cfg, CFGFILE)) {
-        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
-                config_error_line(&cfg), config_error_text(&cfg));
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         exit(EXIT_FAILURE);
     }
 
     Bool_t configerror = kFALSE;
 
-    if (!(config_lookup_int(&cfg, "ndelay", &NDELAY)
-            && config_lookup_int(&cfg, "maxbit", &MAXBIT)
-            && config_lookup_float(&cfg, "windowlength", &WT))) {
+    if (!(config_lookup_int(&cfg, "ndelay", &NDELAY) && config_lookup_int(&cfg, "maxbit", &MAXBIT) && config_lookup_float(&cfg, "windowlength", &WT)))
         configerror = kTRUE;
-    }
 
     Int_t delayRIN;
     setting = config_lookup(&cfg, "ringinfo.data");
@@ -142,19 +139,15 @@ int main(int argc, char** argv) {
 Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
     if (select == 1) {
         printf("Reading scaler ring buffer helicity information ...\n");
-        if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR,
-                    nrun);
+        if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR, nrun);
             exit(-1);
         }
     }
     else if (select == 2) {
         printf("Reading happex ring buffer helicity information ...\n");
-        if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR,
-                    nrun);
+        if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR, nrun);
             exit(-1);
         }
     }
@@ -190,12 +183,10 @@ Int_t predictring(Int_t nrun, Int_t select) {
         gSeed_rep[i] = 0;
         gHelicity_act[i] = 0;
 
-        if (gQRT[i] == 1) {
+        if (gQRT[i] == 1)
             fPhaseRing_rep = 0;
-        }
-        else {
+        else
             fPhaseRing_rep += 1;
-        }
         if (fPhaseRing_rep >= 4) {
             fNSeedRing = 0;
             gError[i] |= (0x01 << (select * 4));
@@ -211,8 +202,7 @@ Int_t predictring(Int_t nrun, Int_t select) {
         }
 
         if ((fNSeedRing < MAXBIT) && gQRT[i] == 1) {
-            fSeedRing_rep = ((fSeedRing_rep << 1) & 0x3FFFFFFF)
-                    | gHelicity_rep[i];
+            fSeedRing_rep = ((fSeedRing_rep << 1) & 0x3FFFFFFF) | gHelicity_rep[i];
             fNSeedRing += 1;
             if (fNSeedRing == MAXBIT) {
                 fSeedRing_act = fSeedRing_rep;
@@ -245,17 +235,15 @@ Int_t predictring(Int_t nrun, Int_t select) {
     }
 
     for (Int_t i = gN - 2; i >= 0; i--) {
-        if (gQRT[i + 1] == 1) {
+        if (gQRT[i + 1] == 1)
             fPhaseRing_rep = 3;
-        }
-        else {
+        else
             fPhaseRing_rep -= 1;
-        }
+
         if (fPhaseRing_rep >= 0) {
             if (gError[i] == 0) {
-                if (gQRT[i] == 1) {
+                if (gQRT[i] == 1)
                     fSeedRing_rep = gSeed_rep[i];
-                }
             }
             else {
                 if (gQRT[i] == 1) {
@@ -267,8 +255,7 @@ Int_t predictring(Int_t nrun, Int_t select) {
                                 fPolarityRing_act = RanBit30(fSeedRing_act);
                             if (fPolarityRing_act == 1) {
                                 gHelicity_act[i] = gHelicity_act[i + 3] = 1;
-                                gHelicity_act[i + 1] = gHelicity_act[i + 2] =
-                                        -1;
+                                gHelicity_act[i + 1] = gHelicity_act[i + 2] = -1;
                                 for (Int_t j = 0; j < 4; j++) {
                                     gError[i + j] = 0;
                                     gSeed_rep[i + j] = fSeedRing_rep;
@@ -337,10 +324,8 @@ Int_t delayring(Int_t ndelay, Int_t select) {
 
 Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     if (select == 1) {
-        if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR,
-                    nrun);
+        if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR, nrun);
             exit(-1);
         }
         if ((fp2 = fopen(Form("%s/helRIN_%d.dat", OUTDIR, nrun), "w")) == NULL) {
@@ -349,10 +334,8 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
         }
     }
     else if (select == 2) {
-        if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR,
-                    nrun);
+        if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR, nrun);
             exit(-1);
         }
         if ((fp2 = fopen(Form("%s/helHAP_%d.dat", OUTDIR, nrun), "w")) == NULL) {
@@ -366,8 +349,7 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     fprintf(fp2, "%d\n", gN);
     for (Int_t i = 0; i < gN; i++) {
         fscanf(fp1, "%d%d%d", &temp[0], &temp[1], &temp[2]);
-        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], gHelicity_act[i],
-                gHelicity_rep[i], gQRT[i], gSeed_rep[i], gError[i]);
+        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], gHelicity_act[i], gHelicity_rep[i], gQRT[i], gSeed_rep[i], gError[i]);
         for (Int_t k = 0; k < nring; k++) {
             fscanf(fp1, "%d", &temp[3]);
             fprintf(fp2, "\t%d", temp[3]);
@@ -382,7 +364,7 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
 }
 
 Int_t RanBit30(Int_t & ranseed) {
-// Take 7,28,29,30 bit of ranseed out
+    // Take 7,28,29,30 bit of ranseed out
     UInt_t bit7 = ((ranseed & 0x00000040) != 0);
     UInt_t bit28 = ((ranseed & 0x08000000) != 0);
     UInt_t bit29 = ((ranseed & 0x10000000) != 0);
@@ -399,8 +381,8 @@ Int_t RanBit30(Int_t & ranseed) {
 }
 
 Int_t BitRan30(Int_t & ranseed) {
-// Take 1,8,29,30 bit of ranseed out
-// Backward predict
+    // Take 1,8,29,30 bit of ranseed out
+    // Backward predict
 
     UInt_t bit1 = ((ranseed & 0x00000001) != 0);
     UInt_t bit8 = ((ranseed & 0x00000080) != 0);

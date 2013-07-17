@@ -31,12 +31,13 @@ int main(int argc, char** argv) {
 
     while (1) {
         static struct option long_options[] = {
-                { "help", no_argument, 0, 'h' },
-                { "event", required_argument, 0, 'e' },
-                { "cfgfile", required_argument, 0, 'c' },
-                { "rawdir", required_argument, 0, 'r' },
-                { "outdir", required_argument, 0, 'o' },
-                { 0, 0, 0, 0 } };
+            { "help", no_argument, 0, 'h'},
+            { "event", required_argument, 0, 'e'},
+            { "cfgfile", required_argument, 0, 'c'},
+            { "rawdir", required_argument, 0, 'r'},
+            { "outdir", required_argument, 0, 'o'},
+            { 0, 0, 0, 0}
+        };
 
         int option_index = 0;
 
@@ -85,8 +86,7 @@ int main(int argc, char** argv) {
     config_init(&cfg);
 
     if (!config_read_file(&cfg, CFGFILE)) {
-        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
-                config_error_line(&cfg), config_error_text(&cfg));
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         exit(EXIT_FAILURE);
     }
@@ -139,17 +139,15 @@ int main(int argc, char** argv) {
         USEHAPPEX = kFALSE;
 
     setting = config_lookup(&cfg, "ringinfo.data");
-    if (setting != NULL) {
+    if (setting != NULL)
         NRING = config_setting_length(setting);
-    }
     else
         configerror = kTRUE;
 
     if (USEHAPPEX) {
         setting = config_lookup(&cfg, "happexinfo.data");
-        if (setting != NULL) {
+        if (setting != NULL)
             NHAPPEX = config_setting_length(setting);
-        }
         else
             configerror = kTRUE;
     }
@@ -176,21 +174,17 @@ Int_t extract(Int_t nrun) {
 
     THaCodaData *coda = new THaCodaFile();
 
-    if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun), "w"))
-            == NULL) {
+    if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
         fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", OUTDIR, nrun);
         exit(-1);
     }
-    if ((fp2 = fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun), "w"))
-            == NULL) {
+    if ((fp2 = fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
         fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", OUTDIR, nrun);
         exit(-1);
     }
     if (USEHAPPEX) {
-        if ((fp3 = fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun), "w"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", OUTDIR,
-                    nrun);
+        if ((fp3 = fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", OUTDIR, nrun);
             exit(-1);
         }
     }
@@ -212,7 +206,8 @@ Int_t extract(Int_t nrun) {
             if ((EVTLIMIT != -1) && (evnum >= EVTLIMIT)) break;
 
             evcount++;
-            if (evcount / 1000 * 1000 == evcount) printf("%d\n", evcount);
+            if (evcount / 1000 * 1000 == evcount)
+                printf("%d\n", evcount);
 
             data = coda->getEvBuffer();
             evlen = data[0] + 1;
@@ -290,8 +285,7 @@ Int_t decode_hel(Int_t* data) {
             fMPSTIR = ((~d) & 0x80) >> 7;
         }
 
-        fprintf(fp1, "%8d\t%d\t%d\t%d\t%d\t", evnum, fHelicityTIR, fQRTTIR,
-                fPairSyncTIR, fMPSTIR);
+        fprintf(fp1, "%8d\t%d\t%d\t%d\t%d\t", evnum, fHelicityTIR, fQRTTIR, fPairSyncTIR, fMPSTIR);
     }
     else
         return -1;
@@ -310,8 +304,7 @@ Int_t decode_hel(Int_t* data) {
             d = data[index++];
             fHelicityRing = (d & 0x01);
             fQRTRing = (d & 0x10) >> 4;
-            fprintf(fp2, "%8d\t%d\t%d\t%3d", evnum, fHelicityRing, fQRTRing,
-                    fDRing[0]);
+            fprintf(fp2, "%8d\t%d\t%d\t%3d", evnum, fHelicityRing, fQRTRing, fDRing[0]);
 
             for (Int_t k = 1; k < NRING; k++) {
                 fDRing[k] = data[index++];
@@ -329,36 +322,28 @@ Int_t decode_hel(Int_t* data) {
         if ((index = findword(data, info_HAP)) != -1) {
             d = data[index++];
 
-            if (((d & 0xbf1ff000) == 0xbf1ff000)
-                    && ((d & 0xffffffff) != 0xffffffff)) {
+            if (((d & 0xbf1ff000) == 0xbf1ff000) && ((d & 0xffffffff) != 0xffffffff))
                 fIHappex = d & 0xfff;
-            }
             else
                 fIHappex = 0;
 
-            for (Int_t i = index;
-                    i < rocpos[info_HAP.roc] + roclen[info_HAP.roc]; i++) {
+            for (Int_t i = index; i < rocpos[info_HAP.roc] + roclen[info_HAP.roc]; i++) {
                 d = data[i];
 
-                if (((d & 0xbfead000) == 0xbfead000)
-                        && ((d & 0xffffffff) != 0xffffffff)) {
+                if (((d & 0xbfead000) == 0xbfead000) && ((d & 0xffffffff) != 0xffffffff))
                     id = d & 0xfff;
-                }
 
-                if (((d & 0xbffec000) == 0xbffec000)
-                        && ((d & 0xffffffff) != 0xffffffff)) {
+                if (((d & 0xbffec000) == 0xbffec000) && ((d & 0xffffffff) != 0xffffffff)) {
                     d = data[i + 1];
                     fHelicityHappex[id] = (d & 2) >> 1;
                     fQRTHappex[id] = (d & 4) >> 2;
                 }
 
-                if (((d & 0xbfadc000) == 0xbfadc000)
-                        && ((d & 0xffffffff) != 0xffffffff)) {
+                if (((d & 0xbfadc000) == 0xbfadc000) && ((d & 0xffffffff) != 0xffffffff)) {
                     ida = d & 0x0f;
                     idaw = (d & 0xf0) >> 4;
                     for (Int_t j = 0; j < ida; j++) {
-                        for (Int_t k = i + 2 + j * idaw;
-                                k < i + 2 + (j + 1) * idaw; k++) {
+                        for (Int_t k = i + 2 + j * idaw; k < i + 2 + (j + 1) * idaw; k++) {
                             d = data[k];
                             adc18_decode_data(d, j, num, val);
                             if (num == 4) fDHappex[0][id] = val;
@@ -369,11 +354,9 @@ Int_t decode_hel(Int_t* data) {
             }
 
             for (Int_t i = 0; i < fIHappex; i++) {
-                fprintf(fp3, "%8d\t%d\t%d", evnum, fHelicityHappex[i],
-                        fQRTHappex[i]);
-                for (Int_t k = 0; k < NHAPPEX; k++) {
+                fprintf(fp3, "%8d\t%d\t%d", evnum, fHelicityHappex[i], fQRTHappex[i]);
+                for (Int_t k = 0; k < NHAPPEX; k++)
                     fprintf(fp3, "\t%6d", fDHappex[k][i]);
-                }
                 fprintf(fp3, "\n");
             }
         }
@@ -394,10 +377,7 @@ Int_t findword(Int_t* data, struct rocinfo info) {
     if (info.header == 0)
         i = info.index + rocpos[info.roc];
     else {
-        for (i = rocpos[info.roc];
-                (i < rocpos[info.roc] + roclen[info.roc] - 4)
-                        && ((data[i] & 0xfffff000) != info.header); i++)
-            ;
+        for (i = rocpos[info.roc]; (i < rocpos[info.roc] + roclen[info.roc] - 4) && ((data[i] & 0xfffff000) != info.header); i++);
         i += info.index;
     }
 

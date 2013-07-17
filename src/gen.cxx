@@ -43,11 +43,12 @@ int main(int argc, char** argv) {
 
     while (1) {
         static struct option long_options[] = {
-                { "help", no_argument, 0, 'h' },
-                { "cfgfile", required_argument, 0, 'c' },
-                { "infodir", required_argument, 0, 'i' },
-                { "rootdir", required_argument, 0, 'r' },
-                { 0, 0, 0, 0 } };
+            { "help", no_argument, 0, 'h'},
+            { "cfgfile", required_argument, 0, 'c'},
+            { "infodir", required_argument, 0, 'i'},
+            { "rootdir", required_argument, 0, 'r'},
+            { 0, 0, 0, 0}
+        };
 
         int option_index = 0;
 
@@ -94,8 +95,7 @@ int main(int argc, char** argv) {
     config_init(&cfg);
 
     if (!config_read_file(&cfg, CFGFILE)) {
-        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
-                config_error_line(&cfg), config_error_text(&cfg));
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         exit(EXIT_FAILURE);
     }
@@ -116,8 +116,7 @@ int main(int argc, char** argv) {
             dataelem = config_setting_get_elem(setting, i);
             config_setting_lookup_string(dataelem, "name", &temp);
             strcpy(tree_HEL.data[i].name, temp);
-            config_setting_lookup_int(dataelem, "index",
-                    &tree_HEL.data[i].index);
+            config_setting_lookup_int(dataelem, "index", &tree_HEL.data[i].index);
         }
     }
     else
@@ -132,8 +131,7 @@ int main(int argc, char** argv) {
         setting = config_lookup(&cfg, "ringinfo.data");
         NRING = config_setting_length(setting);
         for (int i = 0; i < NRING; i++) {
-            strcpy(tree_RIN.data[i].name,
-                    config_setting_get_string_elem(setting, i));
+            strcpy(tree_RIN.data[i].name, config_setting_get_string_elem(setting, i));
             tree_RIN.data[i].index = -1;
         }
     }
@@ -150,8 +148,7 @@ int main(int argc, char** argv) {
         setting = config_lookup(&cfg, "happexinfo.data");
         NHAPPEX = config_setting_length(setting);
         for (int i = 0; i < NHAPPEX; i++) {
-            strcpy(tree_HAP.data[i].name,
-                    config_setting_get_string_elem(setting, i));
+            strcpy(tree_HAP.data[i].name, config_setting_get_string_elem(setting, i));
             tree_HAP.data[i].index = -1;
         }
     }
@@ -202,40 +199,18 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
 
         TList newBranch;
 
-        newBranch.Add(
-                t->Branch(Form("%shel_act", tree_HEL.prefix), &fHelicity_act,
-                        "hel_act/I"));
-        newBranch.Add(
-                t->Branch(Form("%shel_rep", tree_HEL.prefix), &fHelicity_rep,
-                        "hel_rep/I"));
-        newBranch.Add(
-                t->Branch(Form("%sqrt", tree_HEL.prefix), &fQRT, "qrt/I"));
-        newBranch.Add(
-                t->Branch(Form("%smps", tree_HEL.prefix), &fMPS, "mps/I"));
-        newBranch.Add(
-                t->Branch(Form("%spairsync", tree_HEL.prefix), &fPairSync,
-                        "pairsync/I"));
-        newBranch.Add(
-                t->Branch(Form("%stimestamp", tree_HEL.prefix), &fTimeStamp,
-                        "timestamp/I"));
-        newBranch.Add(
-                t->Branch(Form("%sseed", tree_HEL.prefix), &fSeed, "seed/I"));
-        newBranch.Add(
-                t->Branch(Form("%serror", tree_HEL.prefix), &fError,
-                        "error/I"));
-        newBranch.Add(
-                t->Branch(Form("%snring", tree_HEL.prefix), &fIRing,
-                        "nring/I"));
-        newBranch.Add(
-                t->Branch(Form("%snhappex", tree_HEL.prefix), &fIHappex,
-                        "nhappex/I"));
+        newBranch.Add(t->Branch(Form("%shel_act", tree_HEL.prefix), &fHelicity_act, "hel_act/I"));
+        newBranch.Add(t->Branch(Form("%shel_rep", tree_HEL.prefix), &fHelicity_rep, "hel_rep/I"));
+        newBranch.Add(t->Branch(Form("%sqrt", tree_HEL.prefix), &fQRT, "qrt/I"));
+        newBranch.Add(t->Branch(Form("%smps", tree_HEL.prefix), &fMPS, "mps/I"));
+        newBranch.Add(t->Branch(Form("%spairsync", tree_HEL.prefix), &fPairSync, "pairsync/I"));
+        newBranch.Add(t->Branch(Form("%stimestamp", tree_HEL.prefix), &fTimeStamp, "timestamp/I"));
+        newBranch.Add(t->Branch(Form("%sseed", tree_HEL.prefix), &fSeed, "seed/I"));
+        newBranch.Add(t->Branch(Form("%serror", tree_HEL.prefix), &fError, "error/I"));
+        newBranch.Add(t->Branch(Form("%snring", tree_HEL.prefix), &fIRing, "nring/I"));
+        newBranch.Add(t->Branch(Form("%snhappex", tree_HEL.prefix), &fIHappex, "nhappex/I"));
         for (Int_t i = 0; i < ntir; i++)
-            newBranch.Add(
-                    t->Branch(
-                            Form("%s%s", tree_HEL.prefix,
-                                    tree_HEL.data[i].name),
-                            &fDATA[tree_HEL.data[i].index],
-                            Form("%s/I", tree_HEL.data[i].name)));
+            newBranch.Add(t->Branch(Form("%s%s", tree_HEL.prefix, tree_HEL.data[i].name), &fDATA[tree_HEL.data[i].index], Form("%s/I", tree_HEL.data[i].name)));
 
         Int_t nentries;
         Int_t gEvNum = 0, N;
@@ -247,9 +222,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
             gEvNum = Int_t(event->GetHeader()->GetEvtNum());
             if (gEvNum % 1000 == 0) printf("%d\n", gEvNum);
             while ((fEvNum < gEvNum) && (!feof(fp1))) {
-                fscanf(fp1, "%d%d%d%d%d%d%d%x%d%d%d", &fEvNum, &fHelicity_act,
-                        &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp,
-                        &fSeed, &fError, &fIRing, &fIHappex);
+                fscanf(fp1, "%d%d%d%d%d%d%d%x%d%d%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeed, &fError, &fIRing, &fIHappex);
                 for (Int_t l = 0; l < NRING + NHAPPEX; l++) {
                     fscanf(fp1, "%d", &fDATA[l]);
                 }
@@ -270,7 +243,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
                 }
             }
             TIter next(&newBranch);
-            while (TBranch *workBranch = (TBranch*) next()) {
+            while (TBranch * workBranch = (TBranch*) next()) {
                 workBranch->Fill();
             }
         }
@@ -280,7 +253,6 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
         f->Close();
 
         filecount++;
-
         sprintf(filename, "%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount);
 
         fclose(fp1);
@@ -302,16 +274,14 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
     while (isexist(filename)) {
         TFile *f = new TFile(filename, "UPDATE");
         if (select == 1) {
-            if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INFODIR, nrun), "r"))
-                    == NULL) {
+            if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INFODIR, nrun), "r")) == NULL) {
                 fprintf(stderr, "Can not open %s/helRIN_%d.dat", INFODIR, nrun);
                 exit(-1);
             }
             ringtree = &tree_RIN;
         }
         else if (select == 2) {
-            if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INFODIR, nrun), "r"))
-                    == NULL) {
+            if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INFODIR, nrun), "r")) == NULL) {
                 fprintf(stderr, "Can not open %s/helHAP_%d.dat", INFODIR, nrun);
                 exit(-1);
             }
@@ -326,16 +296,13 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
         TTree *t = new TTree(ringtree->name, ringtree->name);
 
         t->Branch(Form("%sevnum", ringtree->prefix), &fEvNum, "evnum/I");
-        t->Branch(Form("%shel_act", ringtree->prefix), &fHelicity_act,
-                "hel_act/I");
-        t->Branch(Form("%shel_rep", ringtree->prefix), &fHelicity_rep,
-                "hel_rep/I");
+        t->Branch(Form("%shel_act", ringtree->prefix), &fHelicity_act, "hel_act/I");
+        t->Branch(Form("%shel_rep", ringtree->prefix), &fHelicity_rep, "hel_rep/I");
         t->Branch(Form("%sqrt", ringtree->prefix), &fQRT, "qrt/I");
         t->Branch(Form("%sseed", ringtree->prefix), &fSeed, "seed/I");
         t->Branch(Form("%serror", ringtree->prefix), &fError, "error/I");
         for (Int_t i = 0; i < nring; i++)
-            t->Branch(Form("%s%s", ringtree->prefix, ringtree->data[i].name),
-                    &fDATA[i], Form("%s/I", ringtree->data[i].name));
+            t->Branch(Form("%s%s", ringtree->prefix, ringtree->data[i].name), &fDATA[i], Form("%s/I", ringtree->data[i].name));
 
         Int_t nentries;
         Int_t N, gEvNumMax = 0, gEvNumMin = 0;
@@ -362,11 +329,9 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
         fscanf(fp1, "%d", &N);
         for (Int_t k = 0; k < N; k++) {
             if (k % 1000 == 0) printf("%d\n", k);
-            fscanf(fp1, "%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep,
-                    &fQRT, &fSeed, &fError);
-            for (Int_t l = 0; l < nring; l++) {
+            fscanf(fp1, "%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fSeed, &fError);
+            for (Int_t l = 0; l < nring; l++)
                 fscanf(fp1, "%d", &fDATA[l]);
-            }
             if ((fEvNum >= gEvNumMin) && (fEvNum <= gEvNumMax)) t->Fill();
             if (fEvNum > gEvNumMax) break;
         }
@@ -376,7 +341,6 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
         f->Close();
 
         filecount++;
-
         sprintf(filename, "%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount);
 
         fclose(fp1);

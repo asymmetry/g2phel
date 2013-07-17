@@ -35,11 +35,12 @@ int main(int argc, char** argv) {
 
     while (1) {
         static struct option long_options[] = {
-                { "help", no_argument, 0, 'h' },
-                { "cfgfile", required_argument, 0, 'c' },
-                { "indir", required_argument, 0, 'i' },
-                { "outdir", required_argument, 0, 'o' },
-                { 0, 0, 0, 0 } };
+            { "help", no_argument, 0, 'h'},
+            { "cfgfile", required_argument, 0, 'c'},
+            { "indir", required_argument, 0, 'i'},
+            { "outdir", required_argument, 0, 'o'},
+            { 0, 0, 0, 0}
+        };
 
         int option_index = 0;
 
@@ -85,8 +86,7 @@ int main(int argc, char** argv) {
     config_init(&cfg);
 
     if (!config_read_file(&cfg, CFGFILE)) {
-        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
-                config_error_line(&cfg), config_error_text(&cfg));
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         exit(EXIT_FAILURE);
     }
@@ -119,8 +119,7 @@ int main(int argc, char** argv) {
     printout(nrun, NRING, 1);
 
     if (USEHAPPEX) {
-        gSystem->Rename(Form("%s/hel_%d.dat", OUTDIR, nrun),
-                Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun));
+        gSystem->Rename(Form("%s/hel_%d.dat", OUTDIR, nrun), Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun));
         readin(nrun, NHAPPEX, 2);
         align(nrun, NHAPPEX, 2);
         printout(nrun, NHAPPEX, 2);
@@ -156,8 +155,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
 
     fscanf(fp1, "%d", &gN);
     for (Int_t i = 0; i < gN; i++) {
-        fscanf(fp1, "%d%d%d%d%x%d", &temp1, &gHelicity_act[i], &fHelRing_rep,
-                &fQRTRing, &gSeed_rep[i], &gError[i]);
+        fscanf(fp1, "%d%d%d%d%x%d", &temp1, &gHelicity_act[i], &fHelRing_rep, &fQRTRing, &gSeed_rep[i], &gError[i]);
         if (fQRTRing == 1)
             fPhase = 0;
         else
@@ -177,18 +175,14 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
     printf("Constructing new TIR helicity information ...\n");
 
     if (select == 1) {
-        if ((fp1 = fopen(Form("%s/helTIR_%d.noring.dat", INDIR, nrun), "r"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", INDIR,
-                    nrun);
+        if ((fp1 = fopen(Form("%s/helTIR_%d.noring.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", INDIR, nrun);
             exit(-1);
         }
     }
     else if (select == 2) {
-        if ((fp1 = fopen(Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun), "r"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat", INDIR,
-                    nrun);
+        if ((fp1 = fopen(Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat", INDIR, nrun);
             exit(-1);
         }
     }
@@ -197,8 +191,8 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
         exit(-1);
     }
 
-    Int_t fHelicity_rep = 0, fHelicity_act = 0, fQRT = 0, fMPS = 0, fPairSync =
-            0, fTimeStamp = 0, fError = 0;
+    Int_t fHelicity_rep = 0, fHelicity_act = 0, fQRT = 0;
+    Int_t fMPS = 0, fPairSync = 0, fTimeStamp = 0, fError = 0;
     Int_t fEvNum;
     Char_t temp[300];
     Int_t fSeedTIR_rep = 0, fPhaseTIR = 0, fPolarityTIR_rep = 0;
@@ -210,32 +204,27 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
     fscanf(fp1, "%d", &N);
     fprintf(fp2, "%d\n", N);
     for (Int_t k = 0; k < N; k++) {
-        fscanf(fp1, "%d%d%d%d%d%d%d%x%d", &fEvNum, &fHelicity_act,
-                &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp,
-                &fSeedTIR_rep, &fError);
+        fscanf(fp1, "%d%d%d%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeedTIR_rep, &fError);
         fgets(temp, 300, fp1);
         temp[strlen(temp) - 1] = '\0';
         for (Int_t j = 0; j < NDATA; j++)
             fDATA[j] = 0;
         if (fError == 0) {
             fPolarityTIR_rep = fSeedTIR_rep & 0x01;
-            if (fQRT == 1) {
+
+            if (fQRT == 1)
                 fPhaseTIR = 0;
-            }
-            else if (fHelicity_rep == fPolarityTIR_rep) {
+            else if (fHelicity_rep == fPolarityTIR_rep)
                 fPhaseTIR = 3;
-            }
-            else if (fPairSync == 1) {
+            else if (fPairSync == 1)
                 fPhaseTIR = 2;
-            }
-            else {
+            else
                 fPhaseTIR = 1;
-            }
+
             if (fNewFlag) {
                 for (Int_t i = ((pLastp > pLastm) ? pLastp : pLastm) + 1;
                         i < gN; i++) {
-                    if ((gPhase[i] == fPhaseTIR)
-                            && (gSeed_rep[i] == fSeedTIR_rep)) {
+                    if ((gPhase[i] == fPhaseTIR) && (gSeed_rep[i] == fSeedTIR_rep)) {
                         pLastp = i - 1;
                         pLastm = i - 1;
                         fNewFlag = kFALSE;
@@ -244,14 +233,10 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                     else
                         gError[i] |= 0x80;
                 }
-                if (!((gPhase[pLastp + 1] == fPhaseTIR)
-                        && (gSeed_rep[pLastp + 1] == fSeedTIR_rep))) {
+                if (!((gPhase[pLastp + 1] == fPhaseTIR) && (gSeed_rep[pLastp + 1] == fSeedTIR_rep))) {
                     fError = fError | (0x1000 * select);
                     fNewFlag = kTRUE;
-                    fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t",
-                            fEvNum, fHelicity_act, fHelicity_rep, fQRT,
-                            fPairSync, fMPS, fTimeStamp, fSeedTIR_rep, fError,
-                            temp);
+                    fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum, fHelicity_act, fHelicity_rep, fQRT, fPairSync, fMPS, fTimeStamp, fSeedTIR_rep, fError, temp);
                     if (nring > 0) {
                         for (Int_t j = 0; j < nring - 1; j++)
                             fprintf(fp2, "%d\t", fDATA[j]);
@@ -261,61 +246,51 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                 }
             }
             if (fHelicity_act == 1) {
-                if (!((gPhase[pLastp] == fPhaseTIR)
-                        && (gSeed_rep[pLastp] == fSeedTIR_rep))) {
-                    for (Int_t i = pLastp + 1; (i < pLastp + 1000) && (i < gN);
-                            i++) {
+                if (!((gPhase[pLastp] == fPhaseTIR) && (gSeed_rep[pLastp] == fSeedTIR_rep))) {
+                    for (Int_t i = pLastp + 1; (i < pLastp + 1000) && (i < gN); i++) {
                         if (gHelicity_act[i] == 1) {
                             for (Int_t j = 0; j < nring; j++)
                                 fDATA[j] += gDATA[j][i];
                         }
-                        if ((gPhase[i] == fPhaseTIR)
-                                && (gSeed_rep[i] == fSeedTIR_rep)) {
+                        if ((gPhase[i] == fPhaseTIR) && (gSeed_rep[i] == fSeedTIR_rep)) {
                             fError = fError | gError[i];
                             pLastp = i;
                             break;
                         }
                     }
-                    if (!((gPhase[pLastp] == fPhaseTIR)
-                            && (gSeed_rep[pLastp] == fSeedTIR_rep))) {
+                    if (!((gPhase[pLastp] == fPhaseTIR) && (gSeed_rep[pLastp] == fSeedTIR_rep))) {
                         fError = fError | (0x1000 * select);
                         fNewFlag = kTRUE;
                     }
                 }
             }
             else {
-                if (!((gPhase[pLastm] == fPhaseTIR)
-                        && (gSeed_rep[pLastm] == fSeedTIR_rep))) {
-                    for (Int_t i = pLastm + 1; (i < pLastm + 1000) && (i < gN);
-                            i++) {
+                if (!((gPhase[pLastm] == fPhaseTIR) && (gSeed_rep[pLastm] == fSeedTIR_rep))) {
+                    for (Int_t i = pLastm + 1; (i < pLastm + 1000) && (i < gN); i++) {
                         if (gHelicity_act[i] == -1) {
                             for (Int_t j = 0; j < nring; j++)
                                 fDATA[j] += gDATA[j][i];
                         }
-                        if ((gPhase[i] == fPhaseTIR)
-                                && (gSeed_rep[i] == fSeedTIR_rep)) {
+                        if ((gPhase[i] == fPhaseTIR) && (gSeed_rep[i] == fSeedTIR_rep)) {
                             fError = fError | gError[i];
                             pLastm = i;
                             break;
                         }
                     }
-                    if (!((gPhase[pLastm] == fPhaseTIR)
-                            && (gSeed_rep[pLastm] == fSeedTIR_rep))) {
+                    if (!((gPhase[pLastm] == fPhaseTIR) && (gSeed_rep[pLastm] == fSeedTIR_rep))) {
                         fError = fError | (0x1000 * select);
                         fNewFlag = kTRUE;
                     }
                 }
             }
         }
-        else if (fError | 0x0F == 0x08) {
+        else if ((fError | 0x0F) == 0x08) {
         }
         else {
             fNewFlag = kTRUE;
         }
 
-        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum,
-                fHelicity_act, fHelicity_rep, fQRT, fPairSync, fMPS, fTimeStamp,
-                fSeedTIR_rep, fError, temp);
+        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum, fHelicity_act, fHelicity_rep, fQRT, fPairSync, fMPS, fTimeStamp, fSeedTIR_rep, fError, temp);
         if (nring > 0) {
             for (Int_t j = 0; j < nring - 1; j++)
                 fprintf(fp2, "%d\t", fDATA[j]);
@@ -335,10 +310,8 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
             fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun), "w"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.appcor.dat", OUTDIR,
-                    nrun);
+        if ((fp2 = fopen(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun), "w")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.appcor.dat", OUTDIR, nrun);
             exit(-1);
         }
     }
@@ -347,10 +320,8 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
             fprintf(stderr, "Can not open %s/helHAP_%d.dat", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun), "w"))
-                == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.appcor.dat", OUTDIR,
-                    nrun);
+        if ((fp2 = fopen(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun), "w")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.appcor.dat", OUTDIR, nrun);
             exit(-1);
         }
     }
@@ -360,10 +331,8 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     fscanf(fp1, "%d", &temp[0]);
     fprintf(fp2, "%d\n", gN);
     for (Int_t i = 0; i < gN; i++) {
-        fscanf(fp1, "%d%d%d%d%x%d", &temp[0], &temp[1], &temp[2], &temp[3],
-                &temp[4], &temp[5]);
-        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2],
-                temp[3], temp[4], gError[i]);
+        fscanf(fp1, "%d%d%d%d%x%d", &temp[0], &temp[1], &temp[2], &temp[3], &temp[4], &temp[5]);
+        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2], temp[3], temp[4], gError[i]);
         for (Int_t k = 0; k < nring; k++) {
             fscanf(fp1, "%d", &temp[6]);
             fprintf(fp2, "\t%d", temp[6]);
@@ -374,14 +343,10 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     fclose(fp1);
     fclose(fp2);
 
-    if (select == 1) {
-        gSystem->Rename(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun),
-                Form("%s/helRIN_%d.dat", OUTDIR, nrun));
-    }
-    else if (select == 2) {
-        gSystem->Rename(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun),
-                Form("%s/helHAP_%d.dat", OUTDIR, nrun));
-    }
+    if (select == 1)
+        gSystem->Rename(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun), Form("%s/helRIN_%d.dat", OUTDIR, nrun));
+    else if (select == 2)
+        gSystem->Rename(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun), Form("%s/helHAP_%d.dat", OUTDIR, nrun));
 
     return 0;
 }
