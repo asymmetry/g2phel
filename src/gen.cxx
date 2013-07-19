@@ -248,7 +248,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
             }
         }
 
-        f->Write("", TObject::kOverwrite);
+        t->Write("", TObject::kOverwrite);
 
         f->Close();
 
