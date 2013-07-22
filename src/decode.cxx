@@ -31,12 +31,12 @@ int main(int argc, char** argv) {
 
     while (1) {
         static struct option long_options[] = {
-            { "help", no_argument, 0, 'h'},
-            { "event", required_argument, 0, 'e'},
-            { "cfgfile", required_argument, 0, 'c'},
-            { "rawdir", required_argument, 0, 'r'},
-            { "outdir", required_argument, 0, 'o'},
-            { 0, 0, 0, 0}
+            {"help", no_argument, 0, 'h'},
+            {"event", required_argument, 0, 'e'},
+            {"cfgfile", required_argument, 0, 'c'},
+            {"rawdir", required_argument, 0, 'r'},
+            {"outdir", required_argument, 0, 'o'},
+            {0, 0, 0, 0}
         };
 
         int option_index = 0;
