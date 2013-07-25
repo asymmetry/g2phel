@@ -1,5 +1,6 @@
 #define MAXMISSED 300
-#define LEN 15000000
+#define LENTIR 10800000
+#define LENRIN 7200000
 
 Int_t NRING = 0;
 Int_t NHAPPEX = 0;

@@ -11,11 +11,11 @@
 FILE *fp1, *fp2;
 
 //Global variables
-Int_t gHelicity_rep[LEN];
-Int_t gHelicity_act[LEN];
-Int_t gQRT[LEN];
-Int_t gSeed_rep[LEN];
-Int_t gError[LEN];
+Int_t gHelicity_rep[LENRIN];
+Int_t gHelicity_act[LENRIN];
+Int_t gQRT[LENRIN];
+Int_t gSeed_rep[LENRIN];
+Int_t gError[LENRIN];
 Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);

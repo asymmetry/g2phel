@@ -17,16 +17,16 @@
 FILE *fp1, *fp2;
 
 //Global variables
-Int_t gHelicity_rep[LEN];
-Int_t gHelicity_act[LEN];
-Int_t gQRT[LEN];
-Int_t gMPS[LEN];
-Int_t gPairSync[LEN];
-Int_t gTimeStamp[LEN];
-Int_t gSeed_rep[LEN];
-Int_t gSeedRing_rep[LEN];
-Int_t gEventRing[LEN];
-Int_t gError[LEN];
+Int_t gHelicity_rep[LENTIR];
+Int_t gHelicity_act[LENTIR];
+Int_t gQRT[LENTIR];
+Int_t gMPS[LENTIR];
+Int_t gPairSync[LENTIR];
+Int_t gTimeStamp[LENTIR];
+Int_t gSeed_rep[LENTIR];
+Int_t gSeedRing_rep[LENRIN];
+Int_t gEventRing[LENRIN];
+Int_t gError[LENTIR];
 Int_t gN, gNRing;
 
 Int_t readin(Int_t nrun, Bool_t usering);

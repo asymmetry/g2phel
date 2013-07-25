@@ -15,11 +15,11 @@
 FILE *fp1, *fp2;
 
 //Global variables
-Int_t gHelicity_act[LEN];
-Int_t gSeed_rep[LEN];
-Int_t gDATA[NDATA][LEN];
-Int_t gError[LEN];
-Int_t gUsed[LEN];
+Int_t gHelicity_act[LENRIN];
+Int_t gSeed_rep[LENRIN];
+Int_t gDATA[NDATA][LENRIN];
+Int_t gError[LENRIN];
+Int_t gUsed[LENRIN];
 Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
@@ -145,7 +145,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
 
     Int_t fHelRing_rep, fQRTRing, temp1;
 
-    for (Int_t i = 0; i < LEN; i++) {
+    for (Int_t i = 0; i < LENRIN; i++) {
         gHelicity_act[i] = 0;
         gSeed_rep[i] = 0;
         gError[i] = 0;
