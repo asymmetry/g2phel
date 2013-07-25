@@ -10,15 +10,16 @@
 #include "hel.h"
 
 #define NDATA 8
+#define NBUFFER 400
 
 FILE *fp1, *fp2;
 
 //Global variables
 Int_t gHelicity_act[LEN];
 Int_t gSeed_rep[LEN];
-Int_t gPhase[LEN];
 Int_t gDATA[NDATA][LEN];
 Int_t gError[LEN];
+Int_t gUsed[LEN];
 Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
@@ -142,7 +143,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
         }
     }
 
-    Int_t fHelRing_rep, fQRTRing, fPhase = 0, temp1;
+    Int_t fHelRing_rep, fQRTRing, temp1;
 
     for (Int_t i = 0; i < LEN; i++) {
         gHelicity_act[i] = 0;
@@ -150,18 +151,12 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
         gError[i] = 0;
         for (Int_t k = 0; k < NDATA; k++)
             gDATA[k][i] = 0;
-        gPhase[i] = 0;
+        gUsed[i] = 0;
     }
 
     fscanf(fp1, "%d", &gN);
     for (Int_t i = 0; i < gN; i++) {
         fscanf(fp1, "%d%d%d%d%x%d", &temp1, &gHelicity_act[i], &fHelRing_rep, &fQRTRing, &gSeed_rep[i], &gError[i]);
-        if (fQRTRing == 1)
-            fPhase = 0;
-        else
-            fPhase++;
-        if (gError[i] > 0) fPhase = 0;
-        gPhase[i] = fPhase;
         for (Int_t k = 0; k < nring; k++)
             fscanf(fp1, "%d", &gDATA[k][i]);
     }
@@ -191,115 +186,126 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
         exit(-1);
     }
 
-    Int_t fHelicity_rep = 0, fHelicity_act = 0, fQRT = 0;
-    Int_t fMPS = 0, fPairSync = 0, fTimeStamp = 0, fError = 0;
-    Int_t fEvNum;
-    Char_t temp[300];
-    Int_t fSeedTIR_rep = 0, fPhaseTIR = 0, fPolarityTIR_rep = 0;
-    Int_t pLastp = 0, pLastm = 0;
-    Int_t fDATA[8];
-    Bool_t fNewFlag = kTRUE;
+    Int_t fHelicity_rep[NBUFFER], fHelicity_act[NBUFFER], fQRT[NBUFFER], fMPS[NBUFFER], fPairSync[NBUFFER];
+    Int_t fTimeStamp[NBUFFER], fSeedTIR_rep[NBUFFER], fError[NBUFFER];
+    Int_t fEvNum[NBUFFER];
+    Char_t fCharTemp[NBUFFER][300];
+    Char_t tempc[300];
+    Int_t fDataP[NDATA], fDataN[NDATA];
+    Int_t tempi[20];
     Int_t N = 0;
+    Int_t NBuff = 0;
+    Int_t fLastSeed = 0;
+    Int_t Index = 0, IStart = 0;
 
     fscanf(fp1, "%d", &N);
-    fprintf(fp2, "%d\n", N);
     for (Int_t k = 0; k < N; k++) {
-        fscanf(fp1, "%d%d%d%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeedTIR_rep, &fError);
-        fgets(temp, 300, fp1);
-        temp[strlen(temp) - 1] = '\0';
-        for (Int_t j = 0; j < NDATA; j++)
-            fDATA[j] = 0;
-        if (fError == 0) {
-            fPolarityTIR_rep = fSeedTIR_rep & 0x01;
+        fscanf(fp1, "%d%d%d%d%d%d%d%x%d", &tempi[0], &tempi[1], &tempi[2], &tempi[3], &tempi[4], &tempi[5], &tempi[6], &tempi[7], &tempi[8]);
+        fgets(tempc, 300, fp1);
+        tempc[strlen(tempc) - 1] = '\0';
 
-            if (fQRT == 1)
-                fPhaseTIR = 0;
-            else if (fHelicity_rep == fPolarityTIR_rep)
-                fPhaseTIR = 3;
-            else if (fPairSync == 1)
-                fPhaseTIR = 2;
-            else
-                fPhaseTIR = 1;
-
-            if (fNewFlag) {
-                for (Int_t i = ((pLastp > pLastm) ? pLastp : pLastm) + 1;
-                        i < gN; i++) {
-                    if ((gPhase[i] == fPhaseTIR) && (gSeed_rep[i] == fSeedTIR_rep)) {
-                        pLastp = i - 1;
-                        pLastm = i - 1;
-                        fNewFlag = kFALSE;
-                        break;
+        if (tempi[8] == 0) {
+            if ((tempi[7] != fLastSeed)&&(NBuff > 0)) { // found a pattern in TIR
+                Int_t Filled = 0;
+                Index = IStart;
+                while ((gSeed_rep[Index] != fLastSeed)&&(Index < gN)) Index++; // search this pattern in ring buffer
+                if (Index < gN) { // found this pattern in ring buffer
+                    Int_t NPattern = 0;
+                    IStart = Index;
+                    for (Int_t i = 0; i < NDATA; i++) {
+                        fDataP[i] = 0;
+                        fDataN[i] = 0;
                     }
-                    else
-                        gError[i] |= 0x80;
-                }
-                if (!((gPhase[pLastp + 1] == fPhaseTIR) && (gSeed_rep[pLastp + 1] == fSeedTIR_rep))) {
-                    fError = fError | (0x1000 * select);
-                    fNewFlag = kTRUE;
-                    fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum, fHelicity_act, fHelicity_rep, fQRT, fPairSync, fMPS, fTimeStamp, fSeedTIR_rep, fError, temp);
-                    if (nring > 0) {
-                        for (Int_t j = 0; j < nring - 1; j++)
-                            fprintf(fp2, "%d\t", fDATA[j]);
-                        fprintf(fp2, "%d\n", fDATA[nring - 1]);
-                    }
-                    continue;
-                }
-            }
-            if (fHelicity_act == 1) {
-                if (!((gPhase[pLastp] == fPhaseTIR) && (gSeed_rep[pLastp] == fSeedTIR_rep))) {
-                    for (Int_t i = pLastp + 1; (i < pLastp + 1000) && (i < gN); i++) {
-                        if (gHelicity_act[i] == 1) {
-                            for (Int_t j = 0; j < nring; j++)
-                                fDATA[j] += gDATA[j][i];
+                    while ((gSeed_rep[Index] == fLastSeed)&&(Index < gN)) {
+                        if (gHelicity_act[Index] == 1) {
+                            for (Int_t j = 0; j < nring; j++) fDataP[j] += gDATA[j][Index];
                         }
-                        if ((gPhase[i] == fPhaseTIR) && (gSeed_rep[i] == fSeedTIR_rep)) {
-                            fError = fError | gError[i];
-                            pLastp = i;
+                        else if (gHelicity_act[Index] == -1) {
+                            for (Int_t j = 0; j < nring; j++) fDataN[j] += gDATA[j][Index];
+                        }
+                        else {
+                            NPattern = 10;
                             break;
                         }
+                        Index++;
+                        NPattern++;
                     }
-                    if (!((gPhase[pLastp] == fPhaseTIR) && (gSeed_rep[pLastp] == fSeedTIR_rep))) {
-                        fError = fError | (0x1000 * select);
-                        fNewFlag = kTRUE;
+                    if (NPattern == 4) {
+                        Int_t GoodPattern = 0;
+                        for (Int_t i = 0; i < NBuff; i++) {
+                            if (fHelicity_act[i] == 1) GoodPattern |= 0x01;
+                            if (fHelicity_act[i] == -1) GoodPattern |= 0x10;
+                        }
+                        if (GoodPattern == 0x11) {
+                            for (Int_t i = 0; i < NBuff; i++) {
+                                fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum[i], fHelicity_act[i], fHelicity_rep[i], fQRT[i], fPairSync[i], fMPS[i], fTimeStamp[i], fSeedTIR_rep[i], fError[i], fCharTemp[i]);
+                                if (((Filled & 0x01) == 0)&&(fHelicity_act[i] == 1)) {
+                                    if (nring > 0) {
+                                        for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "%d\t", fDataP[j]);
+                                        fprintf(fp2, "%d\n", fDataP[nring - 1]);
+                                    }
+                                    Filled |= 0x01;
+                                }
+                                else if (((Filled & 0x10) == 0)&&(fHelicity_act[i] == -1)) {
+                                    if (nring > 0) {
+                                        for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "%d\t", fDataN[j]);
+                                        fprintf(fp2, "%d\n", fDataN[nring - 1]);
+                                    }
+                                    Filled |= 0x10;
+                                }
+                                else {
+                                    if (nring > 0) {
+                                        for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
+                                        fprintf(fp2, "0\n");
+                                    }
+                                }
+                            }
+                            for (Int_t i = IStart; i < Index; i++) gUsed[i] = 1;
+                        }
                     }
                 }
-            }
-            else {
-                if (!((gPhase[pLastm] == fPhaseTIR) && (gSeed_rep[pLastm] == fSeedTIR_rep))) {
-                    for (Int_t i = pLastm + 1; (i < pLastm + 1000) && (i < gN); i++) {
-                        if (gHelicity_act[i] == -1) {
-                            for (Int_t j = 0; j < nring; j++)
-                                fDATA[j] += gDATA[j][i];
+                if (Filled == 0) {
+                    for (Int_t i = 0; i < NBuff; i++) {
+                        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum[i], fHelicity_act[i], fHelicity_rep[i], fQRT[i], fPairSync[i], fMPS[i], fTimeStamp[i], fSeedTIR_rep[i], 0x1000 * select, fCharTemp[i]);
+                        if (nring > 0) {
+                            for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
+                            fprintf(fp2, "0\n");
                         }
-                        if ((gPhase[i] == fPhaseTIR) && (gSeed_rep[i] == fSeedTIR_rep)) {
-                            fError = fError | gError[i];
-                            pLastm = i;
-                            break;
-                        }
-                    }
-                    if (!((gPhase[pLastm] == fPhaseTIR) && (gSeed_rep[pLastm] == fSeedTIR_rep))) {
-                        fError = fError | (0x1000 * select);
-                        fNewFlag = kTRUE;
                     }
                 }
+                NBuff = 0;
             }
-        }
-        else if ((fError | 0x0F) == 0x08) {
+
+            // possible new pattern, store info into buff
+            fEvNum[NBuff] = tempi[0];
+            fHelicity_act[NBuff] = tempi[1];
+            fHelicity_rep[NBuff] = tempi[2];
+            fQRT[NBuff] = tempi[3];
+            fPairSync[NBuff] = tempi[4];
+            fMPS[NBuff] = tempi[5];
+            fTimeStamp[NBuff] = tempi[6];
+            fSeedTIR_rep[NBuff] = tempi[7];
+            fError[NBuff] = tempi[8];
+            strcpy(fCharTemp[NBuff], tempc);
+            fLastSeed = tempi[7];
+            NBuff++;
         }
         else {
-            fNewFlag = kTRUE;
-        }
-
-        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum, fHelicity_act, fHelicity_rep, fQRT, fPairSync, fMPS, fTimeStamp, fSeedTIR_rep, fError, temp);
-        if (nring > 0) {
-            for (Int_t j = 0; j < nring - 1; j++)
-                fprintf(fp2, "%d\t", fDATA[j]);
-            fprintf(fp2, "%d\n", fDATA[nring - 1]);
+            fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", tempi[0], tempi[1], tempi[2], tempi[3], tempi[4], tempi[5], tempi[6], tempi[7], tempi[8], tempc);
+            if (nring > 0) {
+                for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
+                fprintf(fp2, "0\n");
+            }
         }
     }
 
     fclose(fp1);
     fclose(fp2);
+
+    gSystem->Exec(Form("sort -n \"%s/hel_%d.dat\" >> temp.dat", OUTDIR, nrun));
+    gSystem->Exec(Form("echo \"%d\" > \"%s/hel_%d.dat\"", N, OUTDIR, nrun));
+    gSystem->Exec(Form("cat temp.dat >> \"%s/hel_%d.dat\"", OUTDIR, nrun));
+    gSystem->Exec("rm temp.dat");
 
     return 0;
 }
@@ -332,7 +338,10 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     fprintf(fp2, "%d\n", gN);
     for (Int_t i = 0; i < gN; i++) {
         fscanf(fp1, "%d%d%d%d%x%d", &temp[0], &temp[1], &temp[2], &temp[3], &temp[4], &temp[5]);
-        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2], temp[3], temp[4], gError[i]);
+        if (gUsed[i] == 1)
+            fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2], temp[3], temp[4], gError[i]);
+        else
+            fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2], temp[3], temp[4], 0x80);
         for (Int_t k = 0; k < nring; k++) {
             fscanf(fp1, "%d", &temp[6]);
             fprintf(fp2, "\t%d", temp[6]);

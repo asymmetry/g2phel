@@ -346,14 +346,22 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                 if (fPolarityTIR_act == 1) {
                     if (fPhaseTIR_rep == 0 || fPhaseTIR_rep == 3)
                         gHelicity_act[i] = 1;
-                    else
+                    else if (fPhaseTIR_rep == 1 || fPhaseTIR_rep == 2)
                         gHelicity_act[i] = -1;
+                    else {
+                        gError[i] |= 0x01;
+                        gHelicity_act[i] = 0;
+                    }
                 }
                 else {
                     if (fPhaseTIR_rep == 0 || fPhaseTIR_rep == 3)
                         gHelicity_act[i] = -1;
-                    else
+                    else if (fPhaseTIR_rep == 1 || fPhaseTIR_rep == 2)
                         gHelicity_act[i] = 1;
+                    else {
+                        gError[i] |= 0x01;
+                        gHelicity_act[i] = 0;
+                    }
                 }
                 gSeed_rep[i] = fSeedTIR_rep;
             }
