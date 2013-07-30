@@ -299,6 +299,17 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
         }
     }
 
+    if (NBuff != 0) {
+        for (Int_t i = 0; i < NBuff; i++) {
+            fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum[i], fHelicity_act[i], fHelicity_rep[i], fQRT[i], fPairSync[i], fMPS[i], fTimeStamp[i], fSeedTIR_rep[i], 0x1000 * select, fCharTemp[i]);
+            if (nring > 0) {
+                for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
+                fprintf(fp2, "0\n");
+            }
+        }
+        NBuff = 0;
+    }
+
     fclose(fp1);
     fclose(fp2);
 

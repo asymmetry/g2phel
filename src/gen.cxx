@@ -169,8 +169,6 @@ int main(int argc, char** argv) {
 }
 
 Int_t inserttir(Int_t nrun, Int_t ntir) {
-    printf("Opening existed rootfile ...\n");
-
     Int_t filecount = 0;
     Char_t filename[300];
 
@@ -178,6 +176,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
 
     while (isexist(filename)) {
         TFile *f = new TFile(filename, "UPDATE");
+        printf("Opening existed rootfile %s ...\n", filename);
 
         if ((fp1 = fopen(Form("%s/hel_%d.dat", INFODIR, nrun), "r")) == NULL) {
             fprintf(stderr, "Can not open %s/hel_%d.dat", INFODIR, nrun);
@@ -220,7 +219,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
         for (Int_t k = 0; k < nentries; k++) {
             t->GetEntry(k);
             gEvNum = Int_t(event->GetHeader()->GetEvtNum());
-            if (gEvNum % 1000 == 0) printf("%d\n", gEvNum);
+            if (gEvNum % 10000 == 0) printf("%d\n", gEvNum);
             while ((fEvNum < gEvNum) && (!feof(fp1))) {
                 fscanf(fp1, "%d%d%d%d%d%d%d%x%d%d%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeed, &fError, &fIRing, &fIHappex);
                 for (Int_t l = 0; l < NRING + NHAPPEX; l++) {
@@ -328,7 +327,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
 
         fscanf(fp1, "%d", &N);
         for (Int_t k = 0; k < N; k++) {
-            if (k % 1000 == 0) printf("%d\n", k);
+            if (k % 10000 == 0) printf("%d\n", k);
             fscanf(fp1, "%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fSeed, &fError);
             for (Int_t l = 0; l < nring; l++)
                 fscanf(fp1, "%d", &fDATA[l]);
