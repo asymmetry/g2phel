@@ -217,6 +217,9 @@ Int_t extract(Int_t nrun) {
             case 2:
             case 3:
             case 4:
+            case 5:
+            case 6:
+            case 7:
             case 8:
                 evnum = data[4];
                 decode_hel(data);
