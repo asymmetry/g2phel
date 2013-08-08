@@ -327,7 +327,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
 
         fscanf(fp1, "%d", &N);
         for (Int_t k = 0; k < N; k++) {
-            if (k % 10000 == 0) printf("%d\n", k);
+            if ((k + 1) % 10000 == 0) printf("%d\n", k + 1);
             fscanf(fp1, "%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fSeed, &fError);
             for (Int_t l = 0; l < nring; l++)
                 fscanf(fp1, "%d", &fDATA[l]);

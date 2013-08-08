@@ -206,8 +206,7 @@ Int_t extract(Int_t nrun) {
             if ((EVTLIMIT != -1) && (evnum >= EVTLIMIT)) break;
 
             evcount++;
-            if (evcount / 1000 * 1000 == evcount)
-                printf("%d\n", evcount);
+            if (evcount % 10000 == 0) printf("%d\n", evcount);
 
             data = coda->getEvBuffer();
             evlen = data[0] + 1;
