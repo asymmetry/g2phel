@@ -38,7 +38,8 @@ Char_t CFGFILE[300] = "./config.cfg";
 Char_t INFODIR[300] = ".";
 Char_t ROOTDIR[300] = ".";
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int c;
 
     while (1) {
@@ -82,8 +83,7 @@ int main(int argc, char** argv) {
 
     if (optind < argc) {
         nrun = atoi(argv[optind++]);
-    }
-    else {
+    } else {
         usage(argc, argv);
         exit(-1);
     }
@@ -118,8 +118,7 @@ int main(int argc, char** argv) {
             strcpy(tree_HEL.data[i].name, temp);
             config_setting_lookup_int(dataelem, "index", &tree_HEL.data[i].index);
         }
-    }
-    else
+    } else
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "ringinfo");
@@ -134,8 +133,7 @@ int main(int argc, char** argv) {
             strcpy(tree_RIN.data[i].name, config_setting_get_string_elem(setting, i));
             tree_RIN.data[i].index = -1;
         }
-    }
-    else
+    } else
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "happexinfo");
@@ -151,8 +149,7 @@ int main(int argc, char** argv) {
             strcpy(tree_HAP.data[i].name, config_setting_get_string_elem(setting, i));
             tree_HAP.data[i].index = -1;
         }
-    }
-    else {
+    } else {
         USEHAPPEX = kFALSE;
     }
 
@@ -168,7 +165,8 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-Int_t inserttir(Int_t nrun, Int_t ntir) {
+Int_t inserttir(Int_t nrun, Int_t ntir)
+{
     Int_t filecount = 0;
     Char_t filename[300];
 
@@ -216,6 +214,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
 
         fscanf(fp1, "%d", &N);
         nentries = t->GetEntries();
+        TIter next(&newBranch);
         for (Int_t k = 0; k < nentries; k++) {
             t->GetEntry(k);
             gEvNum = Int_t(event->GetHeader()->GetEvtNum());
@@ -241,14 +240,14 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
                     fDATA[l] = 0;
                 }
             }
-            TIter next(&newBranch);
+            next.Reset();
             while (TBranch * workBranch = (TBranch*) next()) {
                 workBranch->Fill();
             }
         }
 
         t->Write("", TObject::kOverwrite);
-
+        f->Purge();
         f->Close();
 
         filecount++;
@@ -262,7 +261,8 @@ Int_t inserttir(Int_t nrun, Int_t ntir) {
     return 0;
 }
 
-Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
+Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
+{
     printf("Opening existed rootfile ...\n");
 
     Int_t filecount = 0;
@@ -278,8 +278,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
                 exit(-1);
             }
             ringtree = &tree_RIN;
-        }
-        else if (select == 2) {
+        } else if (select == 2) {
             if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INFODIR, nrun), "r")) == NULL) {
                 fprintf(stderr, "Can not open %s/helHAP_%d.dat", INFODIR, nrun);
                 exit(-1);
@@ -335,7 +334,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
             if (fEvNum > gEvNumMax) break;
         }
 
-        f->Write("", TObject::kOverwrite);
+        t->Write("", TObject::kOverwrite);
 
         f->Close();
 
@@ -350,7 +349,8 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select) {
     return 0;
 }
 
-void usage(int argc, char** argv) {
+void usage(int argc, char** argv)
+{
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
     printf("  -h, --help                 This small usage guide\n");
