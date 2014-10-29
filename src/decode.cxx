@@ -26,7 +26,8 @@ Char_t CFGFILE[300] = "./config.cfg";
 Char_t RAWDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int c;
 
     while (1) {
@@ -74,8 +75,7 @@ int main(int argc, char** argv) {
 
     if (optind < argc) {
         nrun = atoi(argv[optind++]);
-    }
-    else {
+    } else {
         usage(argc, argv);
         exit(-1);
     }
@@ -100,8 +100,7 @@ int main(int argc, char** argv) {
         config_setting_lookup_int(setting, "header", &temp);
         info_HEL.header = (unsigned) temp;
         config_setting_lookup_int(setting, "index", &info_HEL.index);
-    }
-    else
+    } else
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "rocinfo.ring");
@@ -111,8 +110,7 @@ int main(int argc, char** argv) {
         config_setting_lookup_int(setting, "header", &temp);
         info_RIN.header = (unsigned) temp;
         config_setting_lookup_int(setting, "index", &info_RIN.index);
-    }
-    else
+    } else
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "rocinfo.time");
@@ -122,8 +120,7 @@ int main(int argc, char** argv) {
         config_setting_lookup_int(setting, "header", &temp);
         info_TIM.header = (unsigned) temp;
         config_setting_lookup_int(setting, "index", &info_TIM.index);
-    }
-    else
+    } else
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "rocinfo.happex");
@@ -134,8 +131,7 @@ int main(int argc, char** argv) {
         config_setting_lookup_int(setting, "header", &temp);
         info_HAP.header = (unsigned) temp;
         config_setting_lookup_int(setting, "index", &info_HAP.index);
-    }
-    else
+    } else
         USEHAPPEX = kFALSE;
 
     setting = config_lookup(&cfg, "ringinfo.data");
@@ -164,7 +160,8 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-Int_t extract(Int_t nrun) {
+Int_t extract(Int_t nrun)
+{
     printf("Extracting helicity information from run %d ...\n", nrun);
 
     Int_t filecount = 0;
@@ -195,8 +192,7 @@ Int_t extract(Int_t nrun) {
     while (isexist(filename)) {
         if (coda->codaOpen(filename) == 0) {
             printf("Adding %s ...\n", filename);
-        }
-        else {
+        } else {
             fprintf(stderr, "Can not open %s", filename);
             break;
         }
@@ -239,7 +235,8 @@ Int_t extract(Int_t nrun) {
     return 0;
 }
 
-Int_t decode_hel(Int_t* data) {
+Int_t decode_hel(Int_t* data)
+{
     Int_t pos, nroc;
     Int_t len, iroc;
     Int_t index;
@@ -273,14 +270,12 @@ Int_t decode_hel(Int_t* data) {
             fQRTTIR = ((d) & 0x10) >> 4;
             fPairSyncTIR = ((~d) & 0x40) >> 6;
             fMPSTIR = ((~d) & 0x80) >> 7;
-        }
-        else if (info_HEL.roc == 11) { // RHRS
+        } else if (info_HEL.roc == 11) { // RHRS
             fHelicityTIR = ((d) & 0x10) >> 4;
             fQRTTIR = ((d) & 0x20) >> 5;
             fPairSyncTIR = ((~d) & 0x40) >> 6;
             fMPSTIR = ((~d) & 0x80) >> 7;
-        }
-        else if (info_HEL.roc == 12) { // 3rd Arm
+        } else if (info_HEL.roc == 12) { // 3rd Arm
             fHelicityTIR = ((~d) & 0x20) >> 5;
             fQRTTIR = ((~d) & 0x10) >> 4;
             fPairSyncTIR = ((~d) & 0x40) >> 6;
@@ -288,15 +283,13 @@ Int_t decode_hel(Int_t* data) {
         }
 
         fprintf(fp1, "%8d\t%d\t%d\t%d\t%d\t", evnum, fHelicityTIR, fQRTTIR, fPairSyncTIR, fMPSTIR);
-    }
-    else
+    } else
         return -1;
 
     if ((index = findword(data, info_TIM)) != -1) {
         fTimeStampTIR = data[index];
         fprintf(fp1, "%10d\t", fTimeStampTIR);
-    }
-    else
+    } else
         return -1;
 
     if ((index = findword(data, info_RIN)) != -1) {
@@ -315,8 +308,7 @@ Int_t decode_hel(Int_t* data) {
 
             fprintf(fp2, "\n");
         }
-    }
-    else
+    } else
         fIRing = 0;
     fprintf(fp1, "%2d\t", fIRing);
 
@@ -361,11 +353,9 @@ Int_t decode_hel(Int_t* data) {
                     fprintf(fp3, "\t%6d", fDHappex[k][i]);
                 fprintf(fp3, "\n");
             }
-        }
-        else
+        } else
             fIHappex = 0;
-    }
-    else
+    } else
         fIHappex = 0;
 
     fprintf(fp1, "%2d\n", fIHappex);
@@ -373,7 +363,8 @@ Int_t decode_hel(Int_t* data) {
     return 0;
 }
 
-Int_t findword(Int_t* data, struct rocinfo info) {
+Int_t findword(Int_t* data, struct rocinfo info)
+{
     Int_t i;
 
     if (info.header == 0)
@@ -386,7 +377,8 @@ Int_t findword(Int_t* data, struct rocinfo info) {
     return (i < rocpos[info.roc] + roclen[info.roc] - 4) ? i : -1;
 }
 
-Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val) {
+Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val)
+{
     Int_t module_id, event_number;
     Int_t ch_number, divider, div_n, data_type;
     Int_t diff_value;
@@ -397,8 +389,7 @@ Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val) {
     if (data & 0x80000000) {
         module_id = (0x1F) & (data >> 26);
         event_number = data & 0x3FFFFFF;
-    }
-    else {
+    } else {
         ch_number = (0x3) & (data >> 29);
         div_n = ((0x3) & (data >> 25));
         divider = 1;
@@ -410,8 +401,7 @@ Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val) {
             if (data & 0x200000) {
                 sign = -1;
                 difference = sign * ((~diff_value & 0x1FFFFF) + 1);
-            }
-            else {
+            } else {
                 sign = 1;
                 difference = diff_value;
             }
@@ -425,7 +415,8 @@ Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val) {
     return 0;
 }
 
-void usage(int argc, char** argv) {
+void usage(int argc, char** argv)
+{
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
     printf("  -e, --event=-1             Set event limit\n");

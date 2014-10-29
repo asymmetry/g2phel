@@ -31,7 +31,8 @@ Char_t CFGFILE[300] = "./config.cfg";
 Char_t INDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int c;
 
     while (1) {
@@ -75,8 +76,7 @@ int main(int argc, char** argv) {
 
     if (optind < argc) {
         nrun = atoi(argv[optind++]);
-    }
-    else {
+    } else {
         usage(argc, argv);
         exit(-1);
     }
@@ -97,16 +97,14 @@ int main(int argc, char** argv) {
     setting = config_lookup(&cfg, "ringinfo.data");
     if (setting != NULL) {
         NRING = config_setting_length(setting);
-    }
-    else
+    } else
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "happexinfo.data");
     if (setting != NULL) {
         USEHAPPEX = kTRUE;
         NHAPPEX = config_setting_length(setting);
-    }
-    else {
+    } else {
         USEHAPPEX = kFALSE;
     }
 
@@ -129,14 +127,14 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
+Int_t readin(Int_t nrun, Int_t nring, Int_t select)
+{
     if (select == 1) {
         if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r")) == NULL) {
             fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
             exit(-1);
         }
-    }
-    else if (select == 2) {
+    } else if (select == 2) {
         if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INDIR, nrun), "r")) == NULL) {
             fprintf(stderr, "Can not open %s/helHAP_%d.dat", INDIR, nrun);
             exit(-1);
@@ -166,7 +164,8 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select) {
     return 0;
 }
 
-Int_t align(Int_t nrun, Int_t nring, Int_t select) {
+Int_t align(Int_t nrun, Int_t nring, Int_t select)
+{
     printf("Constructing new TIR helicity information ...\n");
 
     if (select == 1) {
@@ -174,8 +173,7 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
             fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", INDIR, nrun);
             exit(-1);
         }
-    }
-    else if (select == 2) {
+    } else if (select == 2) {
         if ((fp1 = fopen(Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun), "r")) == NULL) {
             fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat", INDIR, nrun);
             exit(-1);
@@ -204,7 +202,7 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
         fgets(tempc, 300, fp1);
         tempc[strlen(tempc) - 1] = '\0';
 
-        if (tempi[8] == 0) {
+        if ((tempi[8]&0xFFF) == 0) {
             if ((tempi[7] != fLastSeed)&&(NBuff > 0)) { // found a pattern in TIR
                 Int_t Filled = 0;
                 Index = IStart;
@@ -219,11 +217,9 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                     while ((gSeed_rep[Index] == fLastSeed)&&(Index < gN)) {
                         if (gHelicity_act[Index] == 1) {
                             for (Int_t j = 0; j < nring; j++) fDataP[j] += gDATA[j][Index];
-                        }
-                        else if (gHelicity_act[Index] == -1) {
+                        } else if (gHelicity_act[Index] == -1) {
                             for (Int_t j = 0; j < nring; j++) fDataN[j] += gDATA[j][Index];
-                        }
-                        else {
+                        } else {
                             NPattern = 10;
                             break;
                         }
@@ -245,15 +241,13 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                                         fprintf(fp2, "%d\n", fDataP[nring - 1]);
                                     }
                                     Filled |= 0x01;
-                                }
-                                else if (((Filled & 0x10) == 0)&&(fHelicity_act[i] == -1)) {
+                                } else if (((Filled & 0x10) == 0)&&(fHelicity_act[i] == -1)) {
                                     if (nring > 0) {
                                         for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "%d\t", fDataN[j]);
                                         fprintf(fp2, "%d\n", fDataN[nring - 1]);
                                     }
                                     Filled |= 0x10;
-                                }
-                                else {
+                                } else {
                                     if (nring > 0) {
                                         for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
                                         fprintf(fp2, "0\n");
@@ -266,7 +260,7 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
                 }
                 if (Filled == 0) {
                     for (Int_t i = 0; i < NBuff; i++) {
-                        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum[i], fHelicity_act[i], fHelicity_rep[i], fQRT[i], fPairSync[i], fMPS[i], fTimeStamp[i], fSeedTIR_rep[i], 0x1000 * select, fCharTemp[i]);
+                        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum[i], fHelicity_act[i], fHelicity_rep[i], fQRT[i], fPairSync[i], fMPS[i], fTimeStamp[i], fSeedTIR_rep[i], fError[i] | (0x1000 * select), fCharTemp[i]);
                         if (nring > 0) {
                             for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
                             fprintf(fp2, "0\n");
@@ -289,8 +283,7 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
             strcpy(fCharTemp[NBuff], tempc);
             fLastSeed = tempi[7];
             NBuff++;
-        }
-        else {
+        } else {
             fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", tempi[0], tempi[1], tempi[2], tempi[3], tempi[4], tempi[5], tempi[6], tempi[7], tempi[8], tempc);
             if (nring > 0) {
                 for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
@@ -301,7 +294,7 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
 
     if (NBuff != 0) {
         for (Int_t i = 0; i < NBuff; i++) {
-            fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum[i], fHelicity_act[i], fHelicity_rep[i], fQRT[i], fPairSync[i], fMPS[i], fTimeStamp[i], fSeedTIR_rep[i], 0x1000 * select, fCharTemp[i]);
+            fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%s\t", fEvNum[i], fHelicity_act[i], fHelicity_rep[i], fQRT[i], fPairSync[i], fMPS[i], fTimeStamp[i], fSeedTIR_rep[i], fError[i] | (0x1000 * select), fCharTemp[i]);
             if (nring > 0) {
                 for (Int_t j = 0; j < nring - 1; j++) fprintf(fp2, "0\t");
                 fprintf(fp2, "0\n");
@@ -321,7 +314,8 @@ Int_t align(Int_t nrun, Int_t nring, Int_t select) {
     return 0;
 }
 
-Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
+Int_t printout(Int_t nrun, Int_t nring, Int_t select)
+{
     if (select == 1) {
         if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r")) == NULL) {
             fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
@@ -331,8 +325,7 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
             fprintf(stderr, "Can not open %s/helRIN_%d.appcor.dat", OUTDIR, nrun);
             exit(-1);
         }
-    }
-    else if (select == 2) {
+    } else if (select == 2) {
         if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INDIR, nrun), "r")) == NULL) {
             fprintf(stderr, "Can not open %s/helHAP_%d.dat", INDIR, nrun);
             exit(-1);
@@ -371,7 +364,8 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select) {
     return 0;
 }
 
-void usage(int argc, char** argv) {
+void usage(int argc, char** argv)
+{
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
     printf("  -h, --help                 This small usage guide\n");

@@ -40,7 +40,8 @@ Char_t CFGFILE[300] = "./config.cfg";
 Char_t INDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int c;
     Bool_t usering = kFALSE;
 
@@ -89,8 +90,7 @@ int main(int argc, char** argv) {
 
     if (optind < argc) {
         nrun = atoi(argv[optind++]);
-    }
-    else {
+    } else {
         usage(argc, argv);
         exit(-1);
     }
@@ -131,7 +131,8 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-Int_t readin(Int_t nrun, Bool_t usering) {
+Int_t readin(Int_t nrun, Bool_t usering)
+{
     printf("Reading TIR helicity information ...\n");
 
     if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
@@ -172,7 +173,8 @@ Int_t readin(Int_t nrun, Bool_t usering) {
     return 0;
 }
 
-Int_t predicttir(Int_t nrun, Bool_t usering) {
+Int_t predicttir(Int_t nrun, Bool_t usering)
+{
     printf("Predicting TIR helicity information ...\n");
 
     Int_t fPolarityTIR_rep = 0, fPolarityTIR_act = 0;
@@ -206,12 +208,10 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                                 fPhaseTIR_rep = 0;
                             else
                                 fPhaseTIR_rep = 4;
-                        }
-                        else {
+                        } else {
                             fPhaseTIR_rep = 4;
                         }
-                    }
-                    else {
+                    } else {
                         Int_t j;
                         for (j = 0; j < MAXMISSED; j++) {
                             if (fGapEvent < ((2.0 + j * 4) * WT)) break;
@@ -226,13 +226,11 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                                 fPhaseTIR_rep = 0;
                             else
                                 fPhaseTIR_rep = 4;
-                        }
-                        else {
+                        } else {
                             fPhaseTIR_rep = 4;
                         }
                     }
-                }
-                else {
+                } else {
                     Int_t MissedQRT = Int_t(fGapQRT / (4 * WT));
                     Int_t MissedWindow = Int_t(fGapEvent / WT);
 #ifdef DEBUG
@@ -251,8 +249,7 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                             fPhaseTIR_rep = 1;
                         else
                             fPhaseTIR_rep = 2;
-                    }
-                    else {
+                    } else {
                         fPhaseTIR_rep = 4;
                     }
                     fLastQRT = Int_t(fLastQRT + MissedQRT * 4.0 * WT);
@@ -271,8 +268,7 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                         if ((fGapEvent < fGapQRT) && (fGapQRT < 6.0 * WT)) {
                             fSeedTIR_rep = ((fSeedTIR_rep << 1 & 0x3FFFFFFF) | gHelicity_rep[i]);
                             fNSeedTIR++;
-                        }
-                        else {
+                        } else {
                             fSeedTIR_rep = 0;
                             fNSeedTIR = 0;
                             if (usering) {
@@ -288,16 +284,13 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                             fMask = (fMask << 1 & 0x3FFFFFFF) | 0x1;
                         }
                         if (k >= MAXMISSED) fSeedTIR_fake = 0;
-                    }
-                    else if (gQRT[pLastEvent] == 1) {
+                    } else if (gQRT[pLastEvent] == 1) {
                         if (fGapEvent < 2.0 * WT) {
-                        }
-                        else {
+                        } else {
                             if (fGapEvent < 6.0 * WT) {
                                 fSeedTIR_rep = ((fSeedTIR_rep << 1 & 0x3FFFFFFF) | gHelicity_rep[i]);
                                 fNSeedTIR++;
-                            }
-                            else {
+                            } else {
                                 fNSeedTIR = 0;
                                 fSeedTIR_rep = 0;
                                 if (usering) {
@@ -352,8 +345,7 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                         gError[i] |= 0x01;
                         gHelicity_act[i] = 0;
                     }
-                }
-                else {
+                } else {
                     if (fPhaseTIR_rep == 0 || fPhaseTIR_rep == 3)
                         gHelicity_act[i] = -1;
                     else if (fPhaseTIR_rep == 1 || fPhaseTIR_rep == 2)
@@ -364,16 +356,14 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
                     }
                 }
                 gSeed_rep[i] = fSeedTIR_rep;
-            }
-            else {
+            } else {
                 gError[i] |= 0x01;
                 gSeed_rep[i] = 0;
                 gHelicity_act[i] = 0;
             }
             if (gQRT[i] == 1) fLastQRT = gTimeStamp[i];
             pLastEvent = i;
-        }
-        else {
+        } else {
             // non-physics trigger event
             gError[i] |= 0x08;
             gSeed_rep[i] = 0;
@@ -384,7 +374,8 @@ Int_t predicttir(Int_t nrun, Bool_t usering) {
     return 0;
 }
 
-Int_t printout(Int_t nrun) {
+Int_t printout(Int_t nrun)
+{
     if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
         fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", INDIR, nrun);
         exit(-1);
@@ -408,7 +399,8 @@ Int_t printout(Int_t nrun) {
     return 0;
 }
 
-Int_t RanBit30(Int_t &ranseed) {
+Int_t RanBit30(Int_t &ranseed)
+{
     // Take 7,28,29,30 bit of ranseed out
     UInt_t bit7 = ((ranseed & 0x00000040) != 0);
     UInt_t bit28 = ((ranseed & 0x08000000) != 0);
@@ -426,7 +418,8 @@ Int_t RanBit30(Int_t &ranseed) {
     return newbit;
 }
 
-Int_t popcount(Int_t x) {
+Int_t popcount(Int_t x)
+{
     x = (x & M1) + ((x >> 1) & M1);
     x = (x & M2) + ((x >> 2) & M2);
     x = (x & M4) + ((x >> 4) & M4);
@@ -435,7 +428,8 @@ Int_t popcount(Int_t x) {
     return x;
 }
 
-void usage(int argc, char** argv) {
+void usage(int argc, char** argv)
+{
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
     printf("  -h, --help                 This small usage guide\n");
