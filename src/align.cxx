@@ -345,7 +345,7 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select)
         if (gUsed[i] == 1)
             fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2], temp[3], temp[4], gError[i]);
         else
-            fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2], temp[3], temp[4], 0x80);
+            fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], temp[1], temp[2], temp[3], temp[4], gError[i] | (0x1000 * select));
         for (Int_t k = 0; k < nring; k++) {
             fscanf(fp1, "%d", &temp[6]);
             fprintf(fp2, "\t%d", temp[6]);
