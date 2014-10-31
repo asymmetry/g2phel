@@ -19,11 +19,11 @@ ring
 tir
 
 # Work Directory
-raw
-rootfiles
+raw/
+rootfiles/
 jobfiles/
 
 # Possibly large file
 *.tar.gz
-hel*.dat
-g2p_*.dat.*
+*.dat
+*.dat.?
