@@ -108,7 +108,7 @@ int main(int argc, char** argv)
 
     Bool_t configerror = kFALSE;
 
-    if (!(config_lookup_int(&cfg, "ndelay", &NDELAY) && config_lookup_int(&cfg, "maxbit", &MAXBIT) && config_lookup_float(&cfg, "windowlength", &WT)))
+    if (!(config_lookup_int(&cfg, "ndelay", &NDELAY) && config_lookup_int(&cfg, "maxbit", &MAXBIT) && config_lookup_float(&cfg, "windowlength", &WT) && config_lookup_float(&cfg, "mpslength", &MPST)))
         configerror = kTRUE;
 
     if (usering) {
@@ -177,34 +177,48 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
 {
     printf("Predicting TIR helicity information ...\n");
 
-    Int_t fPolarityTIR_rep = 0, fPolarityTIR_act = 0;
-    Int_t fPhaseTIR_rep = 0;
-    Int_t fSeedTIR_rep = 0, fSeedTIR_act = 0;
+    Int_t fSeedTIR_rep = 0, fPolarityTIR_rep = 0, fPhaseTIR_rep = 0;
+    Int_t fSeedTIR_act = 0, fPolarityTIR_act = 0;
     Int_t fSeedTIR_fake = 0, fMask = 0;
     Int_t fNSeedTIR = 0;
-    Int_t pLastEvent = 0, fLastQRT = 0;
-    Int_t fGapEvent = 0, fGapQRT = 0;
+    Int_t pLastEvent = 0, pLastMPS = 0;
+    Int_t fPhaseLastTIR = -1;
+    Int_t fTimeLastQRT = 0;
+    Double_t fTimeGap = 0, fTimeGapQRT = 0;
+    Double_t fTimeRef = -1, fTimeRefQRT = -1; // Use MPS==1 event to set a reference
 
     for (Int_t i = 0; i < gN; i++) {
         if (gMPS[i] == 0) {
             // calculate time stamp
-            fGapEvent = gTimeStamp[i] - gTimeStamp[pLastEvent];
-            fGapQRT = gTimeStamp[i] - fLastQRT;
+            if (fTimeRef > 0) {
+                fTimeGap = gTimeStamp[i] - fTimeRef;
+                fTimeGapQRT = gTimeStamp[i] - fTimeRefQRT;
+            } else {
+                fTimeGap = gTimeStamp[i] - gTimeStamp[pLastEvent];
+                fTimeGapQRT = gTimeStamp[i] - fTimeLastQRT;
+            }
 
+#ifdef DEBUG
+            printf("%8d  %1d  %1d  %6d  %6d  %10d  ", i + 1, gQRT[i], gHelicity_rep[i], Int_t(fTimeGap), Int_t(fTimeGapQRT), Int_t(fTimeRefQRT));
+#endif
             // predict helicity
             if (fNSeedTIR == MAXBIT) {
-                if (gQRT[i] == 1) {
-                    if (gQRT[pLastEvent] == 0) {
-                        Int_t MissedQRT = Int_t(fGapEvent / (4 * WT));
+                if (gQRT[i] == 1) { // possibly a new pattern
+                    if (gQRT[pLastEvent] == 0) { // the first event of a new pattern
+                        Int_t MissedQRT = Int_t(fTimeGap / (4 * WT));
                         if (MissedQRT < MAXMISSED) {
                             for (Int_t j = 0; j <= MissedQRT; j++) {
                                 fPolarityTIR_rep = RanBit30(fSeedTIR_rep);
                                 fPolarityTIR_act = RanBit30(fSeedTIR_act);
+                                if (fTimeRef > 0) {
+                                    fTimeRef += 4 * WT;
+                                    fTimeRefQRT += 4 * WT;
+                                }
                             }
 #ifdef DEBUG
-                            printf("%d\tD1\t%d\t%d\t%d\t%d\t%d\t%d\n", i + 1, gQRT[i], gHelicity_rep[i], fGapEvent, fGapQRT, MissedQRT, Int_t(fGapEvent / WT));
+                            printf("D1  %2d  %08x\n", MissedQRT, fSeedTIR_rep);
 #endif
-                            if (fPolarityTIR_rep == gHelicity_rep[i])
+                            if (gHelicity_rep[i] == fPolarityTIR_rep)
                                 fPhaseTIR_rep = 0;
                             else
                                 fPhaseTIR_rep = 4;
@@ -212,17 +226,24 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                             fPhaseTIR_rep = 4;
                         }
                     } else {
-                        Int_t j;
-                        for (j = 0; j < MAXMISSED; j++) {
-                            if (fGapEvent < ((2.0 + j * 4) * WT)) break;
+                        // 2 possibilities
+                        // 1) missed 3 or 3+4n windows between 2 QRT windows
+                        // 2) 2 events in the same QRT window
+                        Int_t MissedQRT;
+                        for (MissedQRT = 0; MissedQRT < MAXMISSED; MissedQRT++) {
+                            if (fTimeGapQRT < ((2.0 + MissedQRT * 4) * WT)) break;
                             fPolarityTIR_rep = RanBit30(fSeedTIR_rep);
                             fPolarityTIR_act = RanBit30(fSeedTIR_act);
+                            if (fTimeRef > 0) {
+                                fTimeRef += 4 * WT;
+                                fTimeRefQRT += 4 * WT;
+                            }
                         }
 #ifdef DEBUG
-                        printf("%d\tD2\t%d\t%d\t%d\t%d\t%d\t%d\n", i + 1, gQRT[i], gHelicity_rep[i], fGapEvent, fGapQRT, j, Int_t(fGapEvent / WT));
+                        printf("D2  %2d  %08x\n", MissedQRT, fSeedTIR_rep);
 #endif
-                        if (j < MAXMISSED) {
-                            if (fPolarityTIR_rep == gHelicity_rep[i])
+                        if (MissedQRT < MAXMISSED) {
+                            if (gHelicity_rep[i] == fPolarityTIR_rep)
                                 fPhaseTIR_rep = 0;
                             else
                                 fPhaseTIR_rep = 4;
@@ -231,32 +252,65 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                         }
                     }
                 } else {
-                    Int_t MissedQRT = Int_t(fGapQRT / (4 * WT));
-                    Int_t MissedWindow = Int_t(fGapEvent / WT);
-#ifdef DEBUG
-                    printf("%d\tD3\t%d\t%d\t%d\t%d\t%d\t%d\n", i + 1, gQRT[i], gHelicity_rep[i], fGapEvent, fGapQRT, MissedQRT, MissedWindow);
-#endif
-                    if ((MissedQRT == 1) && (MissedWindow == 0)
-                            && (gQRT[pLastEvent] == 0)) MissedQRT = 0;
+                    Int_t MissedQRT = Int_t(fTimeGapQRT / (4 * WT));
+                    if (fTimeRefQRT > 0) {
+                        Double_t fRefQRT_tmp = fTimeRefQRT + (MissedQRT + 1) * 4 * WT - 0.4 * WT;
+                        if (fRefQRT_tmp < gTimeStamp[i]) MissedQRT += 1;
+                    }
                     if (MissedQRT < MAXMISSED) {
                         for (Int_t j = 0; j < MissedQRT; j++) {
                             fPolarityTIR_rep = RanBit30(fSeedTIR_rep);
                             fPolarityTIR_act = RanBit30(fSeedTIR_act);
                         }
-                        if (gHelicity_rep[i] == fPolarityTIR_rep)
-                            fPhaseTIR_rep = 3;
-                        else if (gPairSync[i] == 0)
-                            fPhaseTIR_rep = 1;
-                        else
-                            fPhaseTIR_rep = 2;
+                        if (gHelicity_rep[i] == fPolarityTIR_rep) {
+                            if (gPairSync[i] == 0)
+                                fPhaseTIR_rep = 3;
+                            else
+                                fPhaseTIR_rep = 4;
+                        } else {
+                            if (gPairSync[i] == 0)
+                                fPhaseTIR_rep = 1;
+                            else
+                                fPhaseTIR_rep = 2;
+                        }
+                        if ((fSeedTIR_rep == gSeed_rep[pLastEvent])&&(fPhaseTIR_rep < fPhaseLastTIR)) {
+                            MissedQRT += 1;
+                            fPolarityTIR_rep = RanBit30(fSeedTIR_rep);
+                            fPolarityTIR_act = RanBit30(fSeedTIR_act);
+                            if (gHelicity_rep[i] == fPolarityTIR_rep) {
+                                if (gPairSync[i] == 0)
+                                    fPhaseTIR_rep = 3;
+                                else
+                                    fPhaseTIR_rep = 4;
+                            } else {
+                                if (gPairSync[i] == 0)
+                                    fPhaseTIR_rep = 1;
+                                else
+                                    fPhaseTIR_rep = 2;
+                            }
+                        }
                     } else {
                         fPhaseTIR_rep = 4;
                     }
-                    fLastQRT = Int_t(fLastQRT + MissedQRT * 4.0 * WT);
+#ifdef DEBUG
+                    printf("D3  %2d  %08x\n", MissedQRT, fSeedTIR_rep);
+#endif
+                    fTimeLastQRT = fTimeLastQRT + MissedQRT * 4.0 * WT;
+                    if (fTimeRef > 0) {
+                        fTimeRef += MissedQRT * 4 * WT;
+                        fTimeRefQRT += MissedQRT * 4 * WT;
+                    }
                 }
                 if (fPhaseTIR_rep >= 4) {
                     fNSeedTIR = 0;
                     fSeedTIR_rep = 0;
+                    fTimeRef = -1;
+                    fTimeRefQRT = -1;
+                    fTimeGap = gTimeStamp[i] - gTimeStamp[pLastEvent];
+                    fTimeGapQRT = gTimeStamp[i] - fTimeLastQRT;
+#ifdef DEBUG
+                    printf("%8d  %1d  %1d  %6d  %6d  %10d  ", i + 1, gQRT[i], gHelicity_rep[i], Int_t(fTimeGap), Int_t(fTimeGapQRT), Int_t(fTimeRefQRT));
+#endif
                 }
             }
 
@@ -265,7 +319,7 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                 if (gQRT[i] == 1) {
                     Int_t k = 0;
                     if (gQRT[pLastEvent] == 0) {
-                        if ((fGapEvent < fGapQRT) && (fGapQRT < 6.0 * WT)) {
+                        if ((fTimeGap < fTimeGapQRT) && (fTimeGapQRT < 6.0 * WT)) {
                             fSeedTIR_rep = ((fSeedTIR_rep << 1 & 0x3FFFFFFF) | gHelicity_rep[i]);
                             fNSeedTIR++;
                         } else {
@@ -273,7 +327,7 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                             fNSeedTIR = 0;
                             if (usering) {
                                 for (k = 0; k < MAXMISSED; k++) {
-                                    if (fGapQRT < (6.0 + k * 4) * WT) break;
+                                    if (fTimeGapQRT < (6.0 + k * 4) * WT) break;
                                     fSeedTIR_fake = (fSeedTIR_fake << 1 & 0x3FFFFFFF) | 0x0;
                                     fMask = (fMask << 1 & 0x3FFFFFFF) | 0x0;
                                 }
@@ -285,9 +339,8 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                         }
                         if (k >= MAXMISSED) fSeedTIR_fake = 0;
                     } else if (gQRT[pLastEvent] == 1) {
-                        if (fGapEvent < 2.0 * WT) {
-                        } else {
-                            if (fGapEvent < 6.0 * WT) {
+                        if (fTimeGap > 2.0 * WT) {
+                            if (fTimeGap < 6.0 * WT) {
                                 fSeedTIR_rep = ((fSeedTIR_rep << 1 & 0x3FFFFFFF) | gHelicity_rep[i]);
                                 fNSeedTIR++;
                             } else {
@@ -295,7 +348,7 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                                 fSeedTIR_rep = 0;
                                 if (usering) {
                                     for (k = 0; k < MAXMISSED; k++) {
-                                        if (fGapQRT < (2.0 + k * 4) * WT) break;
+                                        if (fTimeGapQRT < (2.0 + k * 4) * WT) break;
                                         fSeedTIR_fake = (fSeedTIR_fake << 1 & 0x3FFFFFFF) | 0x0;
                                         fMask = (fMask << 1 & 0x3FFFFFFF) | 0x0;
                                     }
@@ -317,6 +370,7 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                             if ((gSeedRing_rep[k] & fMask) == fSeedTIR_fake) {
                                 fSeedTIR_rep = gSeedRing_rep[k];
                                 fNSeedTIR = MAXBIT;
+                                fMask = 0;
                                 break;
                             }
                         }
@@ -326,48 +380,59 @@ Int_t predicttir(Int_t nrun, Bool_t usering)
                         fSeedTIR_act = fSeedTIR_rep;
                         for (Int_t j = 0; j < NDELAY; j++)
                             fPolarityTIR_act = RanBit30(fSeedTIR_act);
+                        fPhaseTIR_rep = 0;
                         gError[i] = 0;
                     }
 #ifdef DEBUG
-                    printf("%d\tS1\t%d\t%d\t%d\t%d\t%d\t%08x\n", i + 1, gQRT[i], gHelicity_rep[i], fGapEvent, fGapQRT, fNSeedTIR, fMask);
+                    printf("S1  %2d  %08x  %08x\n", fNSeedTIR, fSeedTIR_rep, fMask);
+#endif
+                } else {
+#ifdef DEBUG
+                    printf("S2  %2d  %08x  %08x\n", fNSeedTIR, fSeedTIR_rep, fMask);
 #endif
                 }
             }
 
             // assign actual helicity to event
             if (fNSeedTIR == MAXBIT) {
-                if (fPolarityTIR_act == 1) {
-                    if (fPhaseTIR_rep == 0 || fPhaseTIR_rep == 3)
-                        gHelicity_act[i] = 1;
-                    else if (fPhaseTIR_rep == 1 || fPhaseTIR_rep == 2)
-                        gHelicity_act[i] = -1;
-                    else {
-                        gError[i] |= 0x01;
-                        gHelicity_act[i] = 0;
+                if (fPhaseTIR_rep <= 3 || fPhaseTIR_rep >= 0) {
+                    if (fPolarityTIR_act == 1) {
+                        if (fPhaseTIR_rep == 0 || fPhaseTIR_rep == 3)
+                            gHelicity_act[i] = 1;
+                        else
+                            gHelicity_act[i] = -1;
+                    } else {
+                        if (fPhaseTIR_rep == 0 || fPhaseTIR_rep == 3)
+                            gHelicity_act[i] = -1;
+                        else
+                            gHelicity_act[i] = 1;
+                    }
+                    if (pLastMPS > pLastEvent) {
+                        if (((gTimeStamp[i] - gTimeStamp[pLastMPS]) < 0.75 * WT)&&(gTimeStamp[pLastMPS] < gTimeStamp[i])&&(gHelicity_rep[pLastMPS] == gHelicity_rep[i])&&(gQRT[pLastMPS] == gQRT[i])&&(gPairSync[pLastMPS] == gPairSync[i])) {
+                            fTimeRef = gTimeStamp[pLastMPS] + (3 - fPhaseTIR_rep) * WT;
+                            fTimeRefQRT = fTimeRef - 2 * WT;
+                        }
                     }
                 } else {
-                    if (fPhaseTIR_rep == 0 || fPhaseTIR_rep == 3)
-                        gHelicity_act[i] = -1;
-                    else if (fPhaseTIR_rep == 1 || fPhaseTIR_rep == 2)
-                        gHelicity_act[i] = 1;
-                    else {
-                        gError[i] |= 0x01;
-                        gHelicity_act[i] = 0;
-                    }
+                    gError[i] |= 0x02;
+                    gHelicity_act[i] = 0;
                 }
                 gSeed_rep[i] = fSeedTIR_rep;
+                fPhaseLastTIR = fPhaseTIR_rep;
             } else {
                 gError[i] |= 0x01;
                 gSeed_rep[i] = 0;
                 gHelicity_act[i] = 0;
+                fPhaseLastTIR = -1;
             }
-            if (gQRT[i] == 1) fLastQRT = gTimeStamp[i];
+            if (gQRT[i] == 1) fTimeLastQRT = gTimeStamp[i];
             pLastEvent = i;
         } else {
             // non-physics trigger event
             gError[i] |= 0x08;
             gSeed_rep[i] = 0;
             gHelicity_act[i] = 0;
+            pLastMPS = i;
         }
     }
 

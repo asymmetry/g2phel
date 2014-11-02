@@ -6,6 +6,6 @@ Int_t NRING = 0;
 Int_t NHAPPEX = 0;
 Int_t NDELAY;
 Int_t MAXBIT;
-Double_t WT;
+Double_t WT, MPST;
 
 Bool_t USEHAPPEX;
