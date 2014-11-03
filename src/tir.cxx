@@ -30,7 +30,7 @@ Int_t gError[LENTIR];
 Int_t gN, gNRing;
 
 Int_t readin(Int_t nrun, Bool_t usering);
-Int_t predicttir(Int_t nrun, Bool_t usering);
+Int_t predicttir(Bool_t usering);
 Int_t printout(Int_t nrun);
 Int_t RanBit30(Int_t &runseed);
 Int_t popcount(Int_t x);
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
     }
 
     readin(nrun, usering);
-    predicttir(nrun, usering);
+    predicttir(usering);
     printout(nrun);
 
     return 0;
@@ -173,7 +173,7 @@ Int_t readin(Int_t nrun, Bool_t usering)
     return 0;
 }
 
-Int_t predicttir(Int_t nrun, Bool_t usering)
+Int_t predicttir(Bool_t usering)
 {
     printf("Predicting TIR helicity information ...\n");
 

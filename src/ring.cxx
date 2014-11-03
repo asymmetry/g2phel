@@ -19,7 +19,7 @@ Int_t gError[LENRIN];
 Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
-Int_t predictring(Int_t nrun, Int_t select);
+Int_t predictring(Int_t select);
 Int_t delayring(Int_t ndelay, Int_t select);
 Int_t printout(Int_t nrun, Int_t nring, Int_t select);
 Int_t RanBit30(Int_t &runseed);
@@ -119,12 +119,12 @@ int main(int argc, char** argv)
     }
 
     readin(nrun, NRING, 1);
-    predictring(nrun, 1);
+    predictring(1);
     delayring(delayRIN, 1);
     printout(nrun, NRING, 1);
     if (USEHAPPEX) {
         readin(nrun, NHAPPEX, 2);
-        predictring(nrun, 2);
+        predictring(2);
         delayring(delayHAP, 2);
         printout(nrun, NHAPPEX, 2);
     }
@@ -168,7 +168,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
     return 0;
 }
 
-Int_t predictring(Int_t nrun, Int_t select)
+Int_t predictring(Int_t select)
 {
     printf("Predicting helicity information ...\n");
 

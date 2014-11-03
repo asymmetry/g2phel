@@ -27,3 +27,6 @@ jobfiles/
 *.tar.gz
 *.dat
 *.dat.?
+
+# Scripts
+*.C
