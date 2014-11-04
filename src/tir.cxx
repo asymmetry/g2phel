@@ -1,12 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <getopt.h>
+
 #include <libconfig.h>
 
 #include "TROOT.h"
-
-#include "hel.h"
 
 #define M1 0x55555555
 #define M2 0x33333333
@@ -14,35 +14,46 @@
 #define M8 0x00ff00ff
 #define M16 0x0000ffff
 
+#define MAXMISSED 300
+
 FILE *fp1, *fp2;
 
-//Global variables
-Int_t gHelicity_rep[LENTIR];
-Int_t gHelicity_act[LENTIR];
-Int_t gQRT[LENTIR];
-Int_t gMPS[LENTIR];
-Int_t gPairSync[LENTIR];
-Int_t gTimeStamp[LENTIR];
-Int_t gSeed_rep[LENTIR];
-Int_t gSeedRing_rep[LENRIN];
-Int_t gEventRing[LENRIN];
-Int_t gError[LENTIR];
-Int_t gN, gNRing;
+// global variables
+Int_t NRING = 0;
+Int_t NHAPPEX = 0;
+Int_t NDELAY;
+Int_t MAXBIT;
+Double_t WT, MPST;
+Bool_t USEHAPPEX;
+
+Int_t *gHelicity_act;
+Int_t *gHelicity_rep;
+Int_t *gPairSync;
+Int_t *gQRT;
+Int_t *gMPS;
+Int_t *gTimeStamp;
+Int_t *gSeed_rep;
+Int_t *gError;
+Int_t gN;
+
+Int_t *gSeedRing_rep;
+Int_t *gEventRing;
+Int_t gNRing;
 
 Int_t readin(Int_t nrun, Bool_t usering);
 Int_t predicttir(Bool_t usering);
-Int_t printout(Int_t nrun);
+Int_t printout(Int_t nrun, Bool_t usering);
 Int_t RanBit30(Int_t &runseed);
 Int_t popcount(Int_t x);
-void usage(int argc, char** argv);
+void usage(Int_t argc, Char_t** argv);
 
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t INDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-int main(int argc, char** argv)
+Int_t main(Int_t argc, Char_t** argv)
 {
-    int c;
+    Int_t c;
     Bool_t usering = kFALSE;
 
     while (1) {
@@ -55,7 +66,7 @@ int main(int argc, char** argv)
             {0, 0, 0, 0}
         };
 
-        int option_index = 0;
+        Int_t option_index = 0;
 
         c = getopt_long(argc, argv, "c:hi:o:r", long_options, &option_index);
 
@@ -124,9 +135,13 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
+    clock_t start = clock();
     readin(nrun, usering);
     predicttir(usering);
-    printout(nrun);
+    printout(nrun, usering);
+    clock_t end = clock();
+
+    printf("Actual helicity calculated in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
 
     return 0;
 }
@@ -136,35 +151,66 @@ Int_t readin(Int_t nrun, Bool_t usering)
     printf("Reading TIR helicity information ...\n");
 
     if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
-        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", INDIR, nrun);
+        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat\n", INDIR, nrun);
         exit(-1);
     }
 
-    Int_t temp[10];
+    Int_t tempi[10];
+    Char_t tempc[300];
 
     gN = 0;
 
-    fscanf(fp1, "%d", &temp[0]);
+    fscanf(fp1, "%d", &tempi[0]);
     while (!feof(fp1)) {
-        fscanf(fp1, "%d%d%d%d%d%d%d", &gHelicity_rep[gN], &gQRT[gN], &gPairSync[gN], &gMPS[gN], &gTimeStamp[gN], &temp[0], &temp[1]);
-        fscanf(fp1, "%d", &temp[0]);
+        fgets(tempc, 300, fp1);
         gN++;
+        fscanf(fp1, "%d", &tempi[0]);
+    }
+
+    gHelicity_rep = new Int_t[gN];
+    gHelicity_act = new Int_t[gN];
+    gQRT = new Int_t[gN];
+    gPairSync = new Int_t[gN];
+    gMPS = new Int_t[gN];
+    gTimeStamp = new Int_t[gN];
+    gSeed_rep = new Int_t[gN];
+    gError = new Int_t[gN];
+
+    memset(gHelicity_rep, 0, sizeof (Int_t) * gN);
+    memset(gHelicity_act, 0, sizeof (Int_t) * gN);
+    memset(gQRT, 0, sizeof (Int_t) * gN);
+    memset(gPairSync, 0, sizeof (Int_t) * gN);
+    memset(gMPS, 0, sizeof (Int_t) * gN);
+    memset(gTimeStamp, 0, sizeof (Int_t) * gN);
+    memset(gSeed_rep, 0, sizeof (Int_t) * gN);
+    memset(gError, 0, sizeof (Int_t) * gN);
+
+    rewind(fp1);
+
+    for (Int_t i = 0; i < gN; i++) {
+        fscanf(fp1, "%d%d%d%d%d%d%d%d", &tempi[0], &gHelicity_rep[i], &gQRT[i], &gPairSync[i], &gMPS[i], &gTimeStamp[i], &tempi[6], &tempi[7]);
     }
 
     fclose(fp1);
 
     if (usering) {
-        if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
+        if ((fp1 = fopen(Form("%s/helRIN_%d.nalign.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.dat\n", INDIR, nrun);
             exit(-1);
         }
 
         fscanf(fp1, "%d", &gNRing);
 
+        gEventRing = new Int_t[gNRing];
+        gSeedRing_rep = new Int_t[gNRing];
+
+        memset(gEventRing, 0, sizeof (Int_t) * gNRing);
+        memset(gSeedRing_rep, 0, sizeof (Int_t) * gNRing);
+
         for (Int_t i = 0; i < gNRing; i++) {
-            fscanf(fp1, "%d%d%d%d%x%d", &gEventRing[i], &temp[1], &temp[2], &temp[3], &gSeedRing_rep[i], &temp[4]);
+            fscanf(fp1, "%d%d%d%d%x%d", &gEventRing[i], &tempi[1], &tempi[2], &tempi[3], &gSeedRing_rep[i], &tempi[5]);
             for (Int_t k = 0; k < NRING; k++)
-                fscanf(fp1, "%d", &temp[0]);
+                fscanf(fp1, "%d", &tempi[0]);
         }
 
         fclose(fp1);
@@ -175,7 +221,7 @@ Int_t readin(Int_t nrun, Bool_t usering)
 
 Int_t predicttir(Bool_t usering)
 {
-    printf("Predicting TIR helicity information ...\n");
+    printf("Calculating actual helicity information ...\n");
 
     Int_t fSeedTIR_rep = 0, fPolarityTIR_rep = 0, fPhaseTIR_rep = 0;
     Int_t fSeedTIR_act = 0, fPolarityTIR_act = 0;
@@ -439,23 +485,37 @@ Int_t predicttir(Bool_t usering)
     return 0;
 }
 
-Int_t printout(Int_t nrun)
+Int_t printout(Int_t nrun, Bool_t usering)
 {
     if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
-        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", INDIR, nrun);
+        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat\n", INDIR, nrun);
         exit(-1);
     }
     if ((fp2 = fopen(Form("%s/helTIR_%d.noring.dat", OUTDIR, nrun), "w")) == NULL) {
-        fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", OUTDIR, nrun);
+        fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat\n", OUTDIR, nrun);
         exit(-1);
     };
 
-    Int_t temp[10];
+    Int_t tempi[10];
 
     fprintf(fp2, "%d\n", gN);
     for (Int_t i = 0; i < gN; i++) {
-        fscanf(fp1, "%d%d%d%d%d%d%d%d", &temp[0], &temp[1], &temp[2], &temp[3], &temp[4], &temp[5], &temp[6], &temp[7]);
-        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%d\t%d\n", temp[0], gHelicity_act[i], gHelicity_rep[i], gQRT[i], gPairSync[i], gMPS[i], gTimeStamp[i], gSeed_rep[i], gError[i], temp[6], temp[7]);
+        fscanf(fp1, "%d%d%d%d%d%d%d%d", &tempi[0], &tempi[1], &tempi[2], &tempi[3], &tempi[4], &tempi[5], &tempi[6], &tempi[7]);
+        fprintf(fp2, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%08x\t%d\t%d\t%d\n", tempi[0], gHelicity_act[i], gHelicity_rep[i], gQRT[i], gPairSync[i], gMPS[i], gTimeStamp[i], gSeed_rep[i], gError[i], tempi[6], tempi[7]);
+    }
+
+    delete[] gHelicity_act;
+    delete[] gHelicity_rep;
+    delete[] gPairSync;
+    delete[] gQRT;
+    delete[] gMPS;
+    delete[] gTimeStamp;
+    delete[] gSeed_rep;
+    delete[] gError;
+
+    if (usering) {
+        delete[] gSeedRing_rep;
+        delete[] gEventRing;
     }
 
     fclose(fp1);
@@ -493,7 +553,7 @@ Int_t popcount(Int_t x)
     return x;
 }
 
-void usage(int argc, char** argv)
+void usage(Int_t argc, Char_t** argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");

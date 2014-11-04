@@ -1,26 +1,31 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <getopt.h>
+
 #include <libconfig.h>
 
 #include "TROOT.h"
 #include "TFile.h"
 #include "TTree.h"
-#include "THaEvent.h"
 
-#include "hel.h"
+#include "THaEvent.h"
 
 #define NDATA 16
 
+Int_t NRING = 0;
+Int_t NHAPPEX = 0;
+Bool_t USEHAPPEX;
+
 struct datainfo {
-    int index;
-    char name[300];
+    Int_t index;
+    Char_t name[300];
 };
 
 struct treeinfo {
-    char name[300];
-    char prefix[300];
+    Char_t name[300];
+    Char_t prefix[300];
     datainfo data[NDATA];
 };
 
@@ -30,17 +35,16 @@ FILE *fp1, *fp2, *fp3;
 
 Int_t inserttir(Int_t nrun, Int_t ntir);
 Int_t insertring(Int_t nrun, Int_t nring, Int_t select);
-void usage(int argc, char** argv);
-
-#include "isexist.h"
+Bool_t isexist(Char_t* fname);
+void usage(Int_t argc, Char_t** argv);
 
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t INFODIR[300] = ".";
 Char_t ROOTDIR[300] = ".";
 
-int main(int argc, char** argv)
+Int_t main(Int_t argc, Char_t** argv)
 {
-    int c;
+    Int_t c;
 
     while (1) {
         static struct option long_options[] = {
@@ -51,7 +55,7 @@ int main(int argc, char** argv)
             {0, 0, 0, 0}
         };
 
-        int option_index = 0;
+        Int_t option_index = 0;
 
         c = getopt_long(argc, argv, "c:hi:r:", long_options, &option_index);
 
@@ -101,7 +105,7 @@ int main(int argc, char** argv)
     }
 
     Bool_t configerror = kFALSE;
-    const char *temp;
+    const Char_t *temp;
 
     Int_t ntir = 0;
     setting = config_lookup(&cfg, "tirinfo");
@@ -112,7 +116,7 @@ int main(int argc, char** argv)
         strcpy(tree_HEL.prefix, temp);
         setting = config_lookup(&cfg, "tirinfo.data");
         ntir = config_setting_length(setting);
-        for (int i = 0; i < ntir; i++) {
+        for (Int_t i = 0; i < ntir; i++) {
             dataelem = config_setting_get_elem(setting, i);
             config_setting_lookup_string(dataelem, "name", &temp);
             strcpy(tree_HEL.data[i].name, temp);
@@ -129,7 +133,7 @@ int main(int argc, char** argv)
         strcpy(tree_RIN.prefix, temp);
         setting = config_lookup(&cfg, "ringinfo.data");
         NRING = config_setting_length(setting);
-        for (int i = 0; i < NRING; i++) {
+        for (Int_t i = 0; i < NRING; i++) {
             strcpy(tree_RIN.data[i].name, config_setting_get_string_elem(setting, i));
             tree_RIN.data[i].index = -1;
         }
@@ -145,7 +149,7 @@ int main(int argc, char** argv)
         strcpy(tree_HAP.prefix, temp);
         setting = config_lookup(&cfg, "happexinfo.data");
         NHAPPEX = config_setting_length(setting);
-        for (int i = 0; i < NHAPPEX; i++) {
+        for (Int_t i = 0; i < NHAPPEX; i++) {
             strcpy(tree_HAP.data[i].name, config_setting_get_string_elem(setting, i));
             tree_HAP.data[i].index = -1;
         }
@@ -158,9 +162,15 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
+    printf("Inserting helicity information ...\n");
+
+    clock_t start = clock();
     inserttir(nrun, ntir);
     insertring(nrun, NRING, 1);
     if (USEHAPPEX) insertring(nrun, NHAPPEX, 2);
+    clock_t end = clock();
+
+    printf("Inserting finished in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
 
     return 0;
 }
@@ -177,7 +187,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         printf("Opening existed rootfile %s ...\n", filename);
 
         if ((fp1 = fopen(Form("%s/hel_%d.dat", INFODIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/hel_%d.dat", INFODIR, nrun);
+            fprintf(stderr, "Can not open %s/hel_%d.dat\n", INFODIR, nrun);
             exit(-1);
         }
 
@@ -218,7 +228,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         for (Int_t k = 0; k < nentries; k++) {
             t->GetEntry(k);
             gEvNum = Int_t(event->GetHeader()->GetEvtNum());
-            if (gEvNum % 10000 == 0) printf("%d\n", gEvNum);
+            //if (gEvNum % 10000 == 0) printf("%d\n", gEvNum);
             while ((fEvNum < gEvNum) && (!feof(fp1))) {
                 fscanf(fp1, "%d%d%d%d%d%d%d%x%d%d%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeed, &fError, &fIRing, &fIHappex);
                 for (Int_t l = 0; l < NRING + NHAPPEX; l++) {
@@ -274,13 +284,13 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
         TFile *f = new TFile(filename, "UPDATE");
         if (select == 1) {
             if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INFODIR, nrun), "r")) == NULL) {
-                fprintf(stderr, "Can not open %s/helRIN_%d.dat", INFODIR, nrun);
+                fprintf(stderr, "Can not open %s/helRIN_%d.dat\n", INFODIR, nrun);
                 exit(-1);
             }
             ringtree = &tree_RIN;
         } else if (select == 2) {
             if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INFODIR, nrun), "r")) == NULL) {
-                fprintf(stderr, "Can not open %s/helHAP_%d.dat", INFODIR, nrun);
+                fprintf(stderr, "Can not open %s/helHAP_%d.dat\n", INFODIR, nrun);
                 exit(-1);
             }
             ringtree = &tree_HAP;
@@ -326,7 +336,7 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
 
         fscanf(fp1, "%d", &N);
         for (Int_t k = 0; k < N; k++) {
-            if ((k + 1) % 10000 == 0) printf("%d\n", k + 1);
+            //if ((k + 1) % 10000 == 0) printf("%d\n", k + 1);
             fscanf(fp1, "%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fSeed, &fError);
             for (Int_t l = 0; l < nring; l++)
                 fscanf(fp1, "%d", &fDATA[l]);
@@ -349,7 +359,22 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
     return 0;
 }
 
-void usage(int argc, char** argv)
+Bool_t isexist(Char_t* fname)
+{
+    FILE *temp;
+    Bool_t isopen;
+
+    if ((temp = fopen(fname, "r")) == NULL) {
+        isopen = false;
+    } else {
+        isopen = true;
+        fclose(temp);
+    }
+
+    return isopen;
+}
+
+void usage(Int_t argc, Char_t** argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");

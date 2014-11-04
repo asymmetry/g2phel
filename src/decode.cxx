@@ -1,34 +1,53 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <getopt.h>
+
 #include <libconfig.h>
 
 #include "TROOT.h"
+
 #include "THaCodaData.h"
 #include "THaCodaFile.h"
 
-#include "hel.h"
-#include "decode.h"
+#define MAXROC 32
 
 FILE *fp1, *fp2, *fp3;
+
+Int_t evlen, evtype, evnum;
+Int_t rocpos[MAXROC], roclen[MAXROC];
+Int_t irn[MAXROC];
+
+struct rocinfo {
+    Int_t roc;
+    UInt_t header;
+    Int_t index;
+};
+rocinfo info_HEL;
+rocinfo info_RIN;
+rocinfo info_HAP;
+rocinfo info_TIM;
+
+Int_t NRING = 0;
+Int_t NHAPPEX = 0;
+Bool_t USEHAPPEX;
 
 Int_t extract(Int_t nrun);
 Int_t decode_hel(Int_t* data);
 Int_t findword(Int_t* data, struct rocinfo info);
 Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val);
-void usage(int argc, char** argv);
-
-#include "isexist.h"
+Bool_t isexist(Char_t* fname);
+void usage(Int_t argc, Char_t** argv);
 
 Int_t EVTLIMIT = -1;
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t RAWDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-int main(int argc, char** argv)
+Int_t main(Int_t argc, Char_t** argv)
 {
-    int c;
+    Int_t c;
 
     while (1) {
         static struct option long_options[] = {
@@ -40,7 +59,7 @@ int main(int argc, char** argv)
             {0, 0, 0, 0}
         };
 
-        int option_index = 0;
+        Int_t option_index = 0;
 
         c = getopt_long(argc, argv, "c:e:ho:r:", long_options, &option_index);
 
@@ -96,9 +115,9 @@ int main(int argc, char** argv)
     setting = config_lookup(&cfg, "rocinfo.hel");
     if (setting != NULL) {
         config_setting_lookup_int(setting, "roc", &info_HEL.roc);
-        int temp;
+        Int_t temp;
         config_setting_lookup_int(setting, "header", &temp);
-        info_HEL.header = (unsigned) temp;
+        info_HEL.header = (UInt_t) temp;
         config_setting_lookup_int(setting, "index", &info_HEL.index);
     } else
         configerror = kTRUE;
@@ -106,9 +125,9 @@ int main(int argc, char** argv)
     setting = config_lookup(&cfg, "rocinfo.ring");
     if (setting != NULL) {
         config_setting_lookup_int(setting, "roc", &info_RIN.roc);
-        int temp;
+        Int_t temp;
         config_setting_lookup_int(setting, "header", &temp);
-        info_RIN.header = (unsigned) temp;
+        info_RIN.header = (UInt_t) temp;
         config_setting_lookup_int(setting, "index", &info_RIN.index);
     } else
         configerror = kTRUE;
@@ -116,9 +135,9 @@ int main(int argc, char** argv)
     setting = config_lookup(&cfg, "rocinfo.time");
     if (setting != NULL) {
         config_setting_lookup_int(setting, "roc", &info_TIM.roc);
-        int temp;
+        Int_t temp;
         config_setting_lookup_int(setting, "header", &temp);
-        info_TIM.header = (unsigned) temp;
+        info_TIM.header = (UInt_t) temp;
         config_setting_lookup_int(setting, "index", &info_TIM.index);
     } else
         configerror = kTRUE;
@@ -127,9 +146,9 @@ int main(int argc, char** argv)
     if (setting != NULL) {
         USEHAPPEX = kTRUE;
         config_setting_lookup_int(setting, "roc", &info_HAP.roc);
-        int temp;
+        Int_t temp;
         config_setting_lookup_int(setting, "header", &temp);
-        info_HAP.header = (unsigned) temp;
+        info_HAP.header = (UInt_t) temp;
         config_setting_lookup_int(setting, "index", &info_HAP.index);
     } else
         USEHAPPEX = kFALSE;
@@ -153,7 +172,11 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
+    clock_t start = clock();
     extract(nrun);
+    clock_t end = clock();
+
+    printf("Extracting finished in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
 
     config_destroy(&cfg);
 
@@ -172,16 +195,16 @@ Int_t extract(Int_t nrun)
     THaCodaData *coda = new THaCodaFile();
 
     if ((fp1 = fopen(Form("%s/helTIR_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
-        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat", OUTDIR, nrun);
+        fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat\n", OUTDIR, nrun);
         exit(-1);
     }
     if ((fp2 = fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
-        fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", OUTDIR, nrun);
+        fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat\n", OUTDIR, nrun);
         exit(-1);
     }
     if (USEHAPPEX) {
         if ((fp3 = fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", OUTDIR, nrun);
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat\n", OUTDIR, nrun);
             exit(-1);
         }
     }
@@ -202,7 +225,7 @@ Int_t extract(Int_t nrun)
             if ((EVTLIMIT != -1) && (evnum >= EVTLIMIT)) break;
 
             evcount++;
-            if (evcount % 10000 == 0) printf("%d\n", evcount);
+            //if (evcount % 10000 == 0) printf("%d\n", evcount);
 
             data = coda->getEvBuffer();
             evlen = data[0] + 1;
@@ -415,7 +438,22 @@ Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val)
     return 0;
 }
 
-void usage(int argc, char** argv)
+Bool_t isexist(Char_t* fname)
+{
+    FILE *temp;
+    Bool_t isopen;
+
+    if ((temp = fopen(fname, "r")) == NULL) {
+        isopen = false;
+    } else {
+        isopen = true;
+        fclose(temp);
+    }
+
+    return isopen;
+}
+
+void usage(Int_t argc, Char_t** argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
@@ -424,3 +462,4 @@ void usage(int argc, char** argv)
     printf("  -o, --outdir=.             Set output directory\n");
     printf("  -r, --rawdir=.             Set rawdata directory\n");
 }
+

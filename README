@@ -1,5 +1,11 @@
 g2p Helicity Decoder
 
+V1.2
+Second Release version. Add 3 major improvements:
+tir.cxx: use MPS events to calibrate the timestamp
+align.cxx: add a function to cut beam trip and check data quality
+overall: use dynamic memory allocation to reduce memory consuming
+
 V1.1
 First Release version. Each small tools now take command line parameters. Add some kind of database file based on libconfig. Also the algorithm in align.cxx and gen.cxx have been tuned to increase the code reusability.
 

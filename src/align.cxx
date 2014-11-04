@@ -1,45 +1,49 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <getopt.h>
+
 #include <libconfig.h>
 
 #include "TROOT.h"
 #include "TSystem.h"
 
-#include "hel.h"
-
-#define NDATA 8
-#define NBUFFER 400
 #define CUTOFF1 120
 #define CUTOFF2 120
 
 FILE *fp1, *fp2;
 
-//Global variables
-Int_t gHel_act[LENTIR];
-Int_t gSeed_rep[LENTIR];
-Int_t gData[NDATA][LENTIR];
-Int_t gError[LENTIR];
-Int_t gHelRing_act[LENRIN];
-Int_t gSeedRing_rep[LENRIN];
-Int_t gDataRing[NDATA][LENRIN];
-Int_t gErrorRing[LENRIN];
-Int_t gN, gNRing;
+// global variables
+Int_t NRING = 0;
+Int_t NHAPPEX = 0;
+Bool_t USEHAPPEX;
+
+Int_t *gHel_act;
+Int_t *gSeed_rep;
+Int_t **gData;
+Int_t *gError;
+Int_t gN;
+
+Int_t *gHelRing_act;
+Int_t *gSeedRing_rep;
+Int_t **gDataRing;
+Int_t *gErrorRing;
+Int_t gNRing;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
 Int_t check(Int_t index, Int_t threshold, Int_t select);
 Int_t align(Int_t nring, Int_t select);
 Int_t printout(Int_t nrun, Int_t nring, Int_t select);
-void usage(int argc, char** argv);
+void usage(Int_t argc, Char_t** argv);
 
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t INDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-int main(int argc, char** argv)
+Int_t main(Int_t argc, Char_t** argv)
 {
-    int c;
+    Int_t c;
 
     while (1) {
         static struct option long_options[] = {
@@ -50,7 +54,7 @@ int main(int argc, char** argv)
             {0, 0, 0, 0}
         };
 
-        int option_index = 0;
+        Int_t option_index = 0;
 
         c = getopt_long(argc, argv, "c:hi:o:", long_options, &option_index);
 
@@ -126,17 +130,27 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
+    clock_t start, end;
+
+    start = clock();
     readin(nrun, NRING, 1);
     check(fIndexRing, fThrRing, 1);
     align(NRING, 1);
     printout(nrun, NRING, 1);
+    end = clock();
+
+    printf("Alignment finished in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
 
     if (USEHAPPEX) {
+        start = end;
         gSystem->Rename(Form("%s/hel_%d.dat", OUTDIR, nrun), Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun));
         readin(nrun, NHAPPEX, 2);
         check(fIndexHappex, fThrHappex, 2);
         align(NHAPPEX, 2);
         printout(nrun, NHAPPEX, 2);
+        end = clock();
+
+        printf("Alignment finished in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
     }
 
     return 0;
@@ -144,22 +158,24 @@ int main(int argc, char** argv)
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select)
 {
+    printf("Reading TIR helicity information ...\n");
+
     if (select == 1) {
         if ((fp1 = fopen(Form("%s/helTIR_%d.noring.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat\n", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
+        if ((fp2 = fopen(Form("%s/helRIN_%d.nalign.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.nalign.dat\n", INDIR, nrun);
             exit(-1);
         }
     } else if (select == 2) {
         if ((fp1 = fopen(Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat\n", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helHAP_%d.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.dat", INDIR, nrun);
+        if ((fp2 = fopen(Form("%s/helHAP_%d.nalign.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.nalign.dat\n", INDIR, nrun);
             exit(-1);
         }
     }
@@ -167,16 +183,22 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
     Int_t tempi[10] = {0};
     Char_t tempc[300];
 
-    printf("Reading TIR helicity information ...\n");
+    fscanf(fp1, "%d", &gN);
 
-    for (Int_t i = 0; i < LENTIR; i++) {
-        gHel_act[i] = 0;
-        gSeed_rep[i] = 0;
-        gError[i] = 0;
-        for (Int_t k = 0; k < NDATA; k++) gData[k][i] = 0;
+    gHel_act = new Int_t[gN];
+    gSeed_rep = new Int_t[gN];
+    gError = new Int_t[gN];
+
+    memset(gHel_act, 0, sizeof (Int_t) * gN);
+    memset(gSeed_rep, 0, sizeof (Int_t) * gN);
+    memset(gError, 0, sizeof (Int_t) * gN);
+
+    gData = new Int_t*[nring];
+    for (Int_t i = 0; i < nring; i++) {
+        gData[i] = new Int_t[gN];
+        memset(gData[i], 0, sizeof (Int_t) * gN);
     }
 
-    fscanf(fp1, "%d", &gN);
     for (Int_t i = 0; i < gN; i++) {
         fscanf(fp1, "%d%d%d%d%d%d%d%x%d", &tempi[0], &gHel_act[i], &tempi[2], &tempi[3], &tempi[4], &tempi[5], &tempi[6], &gSeed_rep[i], &gError[i]);
         fgets(tempc, 300, fp1);
@@ -188,23 +210,34 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
         printf("Reading happex ring buffer helicity information ...\n");
     }
 
-    for (Int_t i = 0; i < LENRIN; i++) {
-        gHelRing_act[i] = 0;
-        gSeedRing_rep[i] = 0;
-        gErrorRing[i] = 0;
-        for (Int_t k = 0; k < NDATA; k++) gDataRing[k][i] = 0;
+    fscanf(fp2, "%d", &gNRing);
+
+    gHelRing_act = new Int_t[gNRing];
+    gSeedRing_rep = new Int_t[gNRing];
+    gErrorRing = new Int_t[gNRing];
+
+    memset(gHelRing_act, 0, sizeof (Int_t) * gNRing);
+    memset(gSeedRing_rep, 0, sizeof (Int_t) * gNRing);
+    memset(gErrorRing, 0, sizeof (Int_t) * gNRing);
+
+    gDataRing = new Int_t*[nring];
+    for (Int_t i = 0; i < nring; i++) {
+        gDataRing[i] = new Int_t[gNRing];
+        memset(gDataRing[i], 0, sizeof (Int_t) * gNRing);
     }
 
     Int_t fPhaseRing = 0;
     Int_t fLastSeedRing = 0;
-    fscanf(fp2, "%d", &gNRing);
     for (Int_t i = 0; i < gNRing; i++) {
         fscanf(fp2, "%d%d%d%d%x%d", &tempi[0], &gHelRing_act[i], &tempi[2], &tempi[3], &gSeedRing_rep[i], &gErrorRing[i]);
         for (Int_t k = 0; k < nring; k++)
             fscanf(fp2, "%d", &gDataRing[k][i]);
 
         if (gSeedRing_rep[i] == fLastSeedRing) fPhaseRing++;
-        else fPhaseRing = 0;
+        else {
+            if (fPhaseRing < 3) gErrorRing[i - 1] |= (0x2 << (4 * select));
+            fPhaseRing = 0;
+        }
         if (fPhaseRing > 3) gErrorRing[i] |= (0x2 << (4 * select));
         fLastSeedRing = gSeedRing_rep[i];
     }
@@ -219,13 +252,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
 
 Int_t check(Int_t index, Int_t threshold, Int_t select)
 {
-    printf("Checking TIR helicity information ...\n");
-
-    if (select == 1) {
-        printf("Checking scaler ring buffer helicity information ...\n");
-    } else if (select == 2) {
-        printf("Checking happex ring buffer helicity information ...\n");
-    }
+    printf("Checking helicity information ...\n");
 
     // check ring buffer helicity information
     Int_t l = 0;
@@ -281,7 +308,7 @@ Int_t check(Int_t index, Int_t threshold, Int_t select)
                 gError[l] |= (0x1000 * select);
             }
         }
-        if ((gError[l]&0xFF7) != 0) {
+        if ((gError[l]&((0xF << (4 * select)) + 0x007)) != 0) {
             Int_t m = l;
             while ((gSeed_rep[m] == gSeed_rep[l])&&(m >= 0)) {
                 gError[m] |= (gError[l] | (0x1000 * select));
@@ -309,7 +336,7 @@ Int_t align(Int_t nring, Int_t select)
     if (select == 1) {
         printf("Align TIR helicity information with scaler helicity information ...\n");
     } else if (select == 2) {
-        printf("Align TIR helicity information with HAPPEX helicity information ...\n");
+        printf("Align TIR helicity information with happex helicity information ...\n");
     }
 
     Int_t pStart = 0, pStartRing = 0;
@@ -326,9 +353,17 @@ Int_t align(Int_t nring, Int_t select)
     for (Int_t i = 0; i < pStartRing; i++) gErrorRing[i] |= (0x1000 * select);
 
     Int_t pGoodP = 0, pGoodN = 0;
-    Int_t fDataP[NDATA], fDataN[NDATA];
     Int_t fSaved = 0;
-    Int_t fSaveP[NDATA] = {0}, fSaveN[NDATA] = {0};
+
+    Int_t *fDataP = new Int_t[nring];
+    Int_t *fDataN = new Int_t[nring];
+    Int_t *fSaveP = new Int_t[nring];
+    Int_t *fSaveN = new Int_t[nring];
+
+    memset(fDataP, 0, sizeof (Int_t) * nring);
+    memset(fDataN, 0, sizeof (Int_t) * nring);
+    memset(fSaveP, 0, sizeof (Int_t) * nring);
+    memset(fSaveN, 0, sizeof (Int_t) * nring);
 
     Int_t pRing = pStartRing, pLastRing = pStartRing;
     while (pRing < gNRing) {
@@ -338,7 +373,7 @@ Int_t align(Int_t nring, Int_t select)
             while ((gSeedRing_rep[pRing] == gSeedRing_rep[pLastRing])&&(pRing < gNRing)) pRing++;
             if ((pRing - pLastRing) == 4) {
                 // good pattern
-                for (Int_t i = 0; i < NDATA; i++) {
+                for (Int_t i = 0; i < nring; i++) {
                     fDataP[i] = 0;
                     fDataN[i] = 0;
                 }
@@ -351,33 +386,38 @@ Int_t align(Int_t nring, Int_t select)
                 }
 
                 // check if tir has same pattern
+                Bool_t Found = false;
                 Int_t IsGood = 0;
-                Int_t m = pStart;
-                while ((((gError[m]&0xFFF) != 0) || (gSeed_rep[m] != gSeedRing_rep[pLastRing]))&&(m < gN)) m++;
-                if (m < gN) {
-                    // found the same pattern
-                    Int_t n = m;
-
-                    while ((((gError[m]&0xFFF) != 0) || (gSeed_rep[n] == gSeed_rep[m]))&&(n < gN)) {
-                        if (gHel_act[n] == 1) IsGood |= 0x01;
-                        if (gHel_act[n] == -1) IsGood |= 0x10;
-                        n++;
+                for (Int_t i = pStart; i < gN; i++) {
+                    if (((gError[i]&((0xF << (4 * select))+(0x1000 * select) + 0xF)) == 0)&&(gSeed_rep[i] == gSeedRing_rep[pLastRing])) {
+                        Found = true;
+                        pStart = i;
+                        break;
                     }
+                }
+                if (Found) {
+                    // found the same pattern
+                    Int_t pTest = pStart;
+                    while ((((gError[pTest]&0x8) == 0x8) || (gSeed_rep[pTest] == gSeed_rep[pStart]))&&(pTest < gN)) {
+                        if (gHel_act[pTest] == 1) IsGood |= 0x01;
+                        if (gHel_act[pTest] == -1) IsGood |= 0x10;
+                        pTest++;
+                    }
+                    if (pTest == gN) IsGood = 0;
                     if (IsGood == 0x11) {
                         // good tir pattern
-                        Int_t Found = 0;
-                        for (Int_t i = m; i < n; i++) {
-                            if (((Found & 0x01) == 0)&&(gHel_act[i] == 1)) {
+                        for (Int_t i = pStart; i < pTest; i++) {
+                            if (((IsGood & 0x0100) == 0)&&(gHel_act[i] == 1)) {
                                 pGoodP = i;
-                                Found |= 0x01;
+                                IsGood |= 0x0100;
                             }
-                            if (((Found & 0x10) == 0)&&(gHel_act[i] == -1)) {
+                            if (((IsGood & 0x1000) == 0)&&(gHel_act[i] == -1)) {
                                 pGoodN = i;
-                                Found |= 0x10;
+                                IsGood |= 0x1000;
                             }
-                            if (Found == 0x11) break;
+                            if (IsGood == 0x1111) break;
                         }
-                        for (Int_t i = 0; i < NDATA; i++) {
+                        for (Int_t i = 0; i < nring; i++) {
                             gData[i][pGoodP] += (fDataP[i] + fSaveP[i]);
                             fSaveP[i] = 0;
                             gData[i][pGoodN] += (fDataN[i] + fSaveN[i]);
@@ -386,11 +426,11 @@ Int_t align(Int_t nring, Int_t select)
                         }
                     }
 #ifdef DEBUG
-                    printf("%8d  %8d  %08x  %8d  %8d  %8d\n", m, n, gSeed_rep[m], pRing, pGoodP, pGoodN);
+                    printf("%8d  %8d  %08x  %8d  %8d  %8d\n", pStart, pTest, gSeed_rep[pStart], pRing, pGoodP, pGoodN);
 #endif
                 }
-                if (IsGood != 0x11) {
-                    for (Int_t i = 0; i < NDATA; i++) {
+                if (IsGood != 0x1111) {
+                    for (Int_t i = 0; i < nring; i++) {
                         fSaveP[i] += fDataP[i];
                         fSaveN[i] += fDataN[i];
                     }
@@ -398,44 +438,50 @@ Int_t align(Int_t nring, Int_t select)
                 }
             } else {
                 // something very bad happened, should never reach here after check()
+                fprintf(stderr, "ERROR: the subroutine check() has some problem!\n");
             }
         } else {
             pRing++;
         }
-        if (fSaved > 0) {
-            for (Int_t i = 0; i < NDATA; i++) {
-                gData[i][pGoodP] += fSaveP[i];
-                fSaveP[i] = 0;
-                gData[i][pGoodN] += fSaveN[i];
-                fSaveN[i] = 0;
-                fSaved = 0;
-            }
+    }
+    if (fSaved > 0) {
+        for (Int_t i = 0; i < nring; i++) {
+            gData[i][pGoodP] += fSaveP[i];
+            fSaveP[i] = 0;
+            gData[i][pGoodN] += fSaveN[i];
+            fSaveN[i] = 0;
+            fSaved = 0;
         }
     }
+
+    delete[] fDataP;
+    delete[] fDataN;
+    delete[] fSaveP;
+    delete[] fSaveN;
 
     return 0;
 }
 
 Int_t printout(Int_t nrun, Int_t nring, Int_t select)
 {
+    Int_t tempi[10];
+    Char_t tempc[300];
+
     if (select == 1) {
         if ((fp1 = fopen(Form("%s/helTIR_%d.noring.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helTIR_%d.noring.dat\n", INDIR, nrun);
             exit(-1);
         }
     } else if (select == 2) {
         if ((fp1 = fopen(Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helTIR_%d.nohapp.dat\n", INDIR, nrun);
             exit(-1);
         }
     }
     if ((fp2 = fopen(Form("%s/hel_%d.dat", OUTDIR, nrun), "w")) == NULL) {
-        fprintf(stderr, "Can not open %s/hel_%d.dat", OUTDIR, nrun);
+        fprintf(stderr, "Can not open %s/hel_%d.dat\n", OUTDIR, nrun);
         exit(-1);
     }
-
-    Int_t tempi[10];
-    Char_t tempc[300];
 
     fscanf(fp1, "%d", &tempi[0]);
     fprintf(fp2, "%d\n", gN);
@@ -454,21 +500,21 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select)
     fclose(fp2);
 
     if (select == 1) {
-        if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.dat", INDIR, nrun);
+        if ((fp1 = fopen(Form("%s/helRIN_%d.nalign.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.nalign.dat\n", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun), "w")) == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.appcor.dat", OUTDIR, nrun);
+        if ((fp2 = fopen(Form("%s/helRIN_%d.dat", OUTDIR, nrun), "w")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.dat\n", OUTDIR, nrun);
             exit(-1);
         }
     } else if (select == 2) {
-        if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.dat", INDIR, nrun);
+        if ((fp1 = fopen(Form("%s/helHAP_%d.nalign.dat", INDIR, nrun), "r")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.nalign.dat\n", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun), "w")) == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.appcor.dat", OUTDIR, nrun);
+        if ((fp2 = fopen(Form("%s/helHAP_%d.dat", OUTDIR, nrun), "w")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.dat\n", OUTDIR, nrun);
             exit(-1);
         }
     }
@@ -485,15 +531,26 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select)
     fclose(fp1);
     fclose(fp2);
 
-    if (select == 1)
-        gSystem->Rename(Form("%s/helRIN_%d.appcor.dat", OUTDIR, nrun), Form("%s/helRIN_%d.dat", OUTDIR, nrun));
-    else if (select == 2)
-        gSystem->Rename(Form("%s/helHAP_%d.appcor.dat", OUTDIR, nrun), Form("%s/helHAP_%d.dat", OUTDIR, nrun));
+    delete[] gHel_act;
+    delete[] gSeed_rep;
+    delete[] gError;
+    for (Int_t i = 0; i < nring; i++) {
+        delete[] gData[i];
+    }
+    delete[] gData;
+
+    delete[] gHelRing_act;
+    delete[] gSeedRing_rep;
+    delete[] gErrorRing;
+    for (Int_t i = 0; i < nring; i++) {
+        delete[] gDataRing[i];
+    }
+    delete[] gDataRing;
 
     return 0;
 }
 
-void usage(int argc, char** argv)
+void usage(Int_t argc, Char_t** argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");

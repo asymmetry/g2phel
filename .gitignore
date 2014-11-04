@@ -19,9 +19,9 @@ ring
 tir
 
 # Work Directory
-raw/
-rootfiles/
-jobfiles/
+raw
+rootfiles
+jobfiles
 
 # Possibly large file
 *.tar.gz

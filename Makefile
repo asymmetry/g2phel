@@ -19,7 +19,7 @@ INCLUDES      = $(ROOTCFLAGS) $(addprefix -I, $(INCDIRS))
 ifndef LIBCONFIG
   $(error $$LIBCONFIG environment variable not defined)
 endif
-LIBCONF      := -L$(LIBCONFIG)/lib -lconfig
+CONFLIBS     := -L$(LIBCONFIG)/lib -lconfig
 INCLUDES     += -I$(LIBCONFIG)/include
 
 CXX           = g++
@@ -30,8 +30,8 @@ DEFINES       = -DLINUXVERS -DHAS_SSTREAM
 CXXFLAGS     += -Wall -Woverloaded-virtual -fPIC -fno-strict-aliasing
 
 CXXFLAGS     += $(DEFINES) $(INCLUDES)
-LIBS         += $(ROOTLIBS) $(HALLALIBS) $(SYSLIBS)
-GLIBS        += $(ROOTGLIBS) $(SYSLIBS)
+LIBS         += $(ROOTLIBS) $(HALLALIBS) $(CONFLIBS) $(SYSLIBS)
+GLIBS        += $(ROOTGLIBS) $(HALLALIBS) $(CONFLIBS) $(SYSLIBS)
 
 PROGRAMS = decode ring tir align gen_hel
 
@@ -40,25 +40,25 @@ SRCDIR := src
 all: $(PROGRAMS)
 
 decode: $(SRCDIR)/decode.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS)
 
 ring: $(SRCDIR)/ring.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
 
 tir: $(SRCDIR)/tir.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
 
 align: $(SRCDIR)/align.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
 
 gen_hel: $(SRCDIR)/gen.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS) $(LIBCONF)
+	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS)
 
 clean:
 	rm -f $(SRCDIR)/*.o $(PROGRAMS)
 
 release:
-	tar cvzf helicity.tar.gz HISTORY Makefile src helicity.sh --exclude=*.o
+	tar cvzf helicity.tar.gz README Makefile src helicity.sh --exclude=*.o
 
 $(SRCDIR)/%.o:	$(SRCDIR)/%.cxx
 	$(CXX) $(CXXFLAGS) -o $@ -c $<

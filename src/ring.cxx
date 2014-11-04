@@ -1,21 +1,28 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <getopt.h>
+
 #include <libconfig.h>
 
 #include "TROOT.h"
 
-#include "hel.h"
-
 FILE *fp1, *fp2;
 
-//Global variables
-Int_t gHelicity_rep[LENRIN];
-Int_t gHelicity_act[LENRIN];
-Int_t gQRT[LENRIN];
-Int_t gSeed_rep[LENRIN];
-Int_t gError[LENRIN];
+// global variables
+Int_t NRING = 0;
+Int_t NHAPPEX = 0;
+Int_t NDELAY;
+Int_t MAXBIT;
+Double_t WT;
+Bool_t USEHAPPEX;
+
+Int_t *gHelicity_rep;
+Int_t *gHelicity_act;
+Int_t *gQRT;
+Int_t *gSeed_rep;
+Int_t *gError;
 Int_t gN;
 
 Int_t readin(Int_t nrun, Int_t nring, Int_t select);
@@ -24,15 +31,15 @@ Int_t delayring(Int_t ndelay, Int_t select);
 Int_t printout(Int_t nrun, Int_t nring, Int_t select);
 Int_t RanBit30(Int_t &runseed);
 Int_t BitRan30(Int_t &runseed); // reversal prediction
-void usage(int argc, char** argv);
+void usage(Int_t argc, Char_t** argv);
 
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t INDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-int main(int argc, char** argv)
+Int_t main(Int_t argc, Char_t** argv)
 {
-    int c;
+    Int_t c;
 
     while (1) {
         static struct option long_options[] = {
@@ -43,7 +50,7 @@ int main(int argc, char** argv)
             {0, 0, 0, 0}
         };
 
-        int option_index = 0;
+        Int_t option_index = 0;
 
         c = getopt_long(argc, argv, "c:hi:o:", long_options, &option_index);
 
@@ -118,15 +125,26 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
+    clock_t start, end;
+
+    start = clock();
     readin(nrun, NRING, 1);
     predictring(1);
     delayring(delayRIN, 1);
     printout(nrun, NRING, 1);
+    end = clock();
+
+    printf("Actual helicity calculated in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
+
     if (USEHAPPEX) {
+        start = clock();
         readin(nrun, NHAPPEX, 2);
         predictring(2);
         delayring(delayHAP, 2);
         printout(nrun, NHAPPEX, 2);
+        end = clock();
+
+        printf("Actual helicity calculated in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
     }
 
     config_destroy(&cfg);
@@ -139,28 +157,46 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
     if (select == 1) {
         printf("Reading scaler ring buffer helicity information ...\n");
         if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat\n", INDIR, nrun);
             exit(-1);
         }
     } else if (select == 2) {
         printf("Reading happex ring buffer helicity information ...\n");
         if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat\n", INDIR, nrun);
             exit(-1);
         }
     }
 
-    Int_t temp1;
+    Int_t tempi[20];
+    Char_t tempc[300];
 
     gN = 0;
 
-    fscanf(fp1, "%d", &temp1);
+    fscanf(fp1, "%d", &tempi[0]);
     while (!feof(fp1)) {
-        fscanf(fp1, "%d%d", &gHelicity_rep[gN], &gQRT[gN]);
-        for (Int_t i = 0; i < nring; i++)
-            fscanf(fp1, "%d", &temp1);
+        fgets(tempc, 300, fp1);
         gN++;
-        fscanf(fp1, "%d", &temp1);
+        fscanf(fp1, "%d", &tempi[0]);
+    }
+
+    gHelicity_rep = new Int_t[gN];
+    gHelicity_act = new Int_t[gN];
+    gQRT = new Int_t[gN];
+    gSeed_rep = new Int_t[gN];
+    gError = new Int_t[gN];
+
+    memset(gHelicity_rep, 0, sizeof (Int_t) * gN);
+    memset(gHelicity_act, 0, sizeof (Int_t) * gN);
+    memset(gQRT, 0, sizeof (Int_t) * gN);
+    memset(gSeed_rep, 0, sizeof (Int_t) * gN);
+    memset(gError, 0, sizeof (Int_t) * gN);
+
+    rewind(fp1);
+
+    for (Int_t i = 0; i < gN; i++) {
+        fscanf(fp1, "%d%d%d", &tempi[0], &gHelicity_rep[i], &gQRT[i]);
+        fgets(tempc, 300, fp1);
     }
 
     fclose(fp1);
@@ -170,7 +206,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
 
 Int_t predictring(Int_t select)
 {
-    printf("Predicting helicity information ...\n");
+    printf("Calculating actual helicity information ...\n");
 
     Int_t fPhaseRing_rep = 0;
     Int_t fPolarityRing_rep = 0, fPolarityRing_act = 0;
@@ -319,39 +355,45 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select)
 {
     if (select == 1) {
         if ((fp1 = fopen(Form("%s/helRIN_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat\n", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helRIN_%d.dat", OUTDIR, nrun), "w")) == NULL) {
-            fprintf(stderr, "Can not open %s/helRIN_%d.dat", OUTDIR, nrun);
+        if ((fp2 = fopen(Form("%s/helRIN_%d.nalign.dat", OUTDIR, nrun), "w")) == NULL) {
+            fprintf(stderr, "Can not open %s/helRIN_%d.dat\n", OUTDIR, nrun);
             exit(-1);
         }
     } else if (select == 2) {
         if ((fp1 = fopen(Form("%s/helHAP_%d.decode.dat", INDIR, nrun), "r")) == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat", INDIR, nrun);
+            fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat\n", INDIR, nrun);
             exit(-1);
         }
-        if ((fp2 = fopen(Form("%s/helHAP_%d.dat", OUTDIR, nrun), "w")) == NULL) {
-            fprintf(stderr, "Can not open %s/helHAP_%d.dat", OUTDIR, nrun);
+        if ((fp2 = fopen(Form("%s/helHAP_%d.nalign.dat", OUTDIR, nrun), "w")) == NULL) {
+            fprintf(stderr, "Can not open %s/helHAP_%d.dat\n", OUTDIR, nrun);
             exit(-1);
         }
     }
 
-    Int_t temp[10];
+    Int_t tempi[10];
 
     fprintf(fp2, "%d\n", gN);
     for (Int_t i = 0; i < gN; i++) {
-        fscanf(fp1, "%d%d%d", &temp[0], &temp[1], &temp[2]);
-        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", temp[0], gHelicity_act[i], gHelicity_rep[i], gQRT[i], gSeed_rep[i], gError[i]);
+        fscanf(fp1, "%d%d%d", &tempi[0], &tempi[1], &tempi[2]);
+        fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d", tempi[0], gHelicity_act[i], gHelicity_rep[i], gQRT[i], gSeed_rep[i], gError[i]);
         for (Int_t k = 0; k < nring; k++) {
-            fscanf(fp1, "%d", &temp[3]);
-            fprintf(fp2, "\t%d", temp[3]);
+            fscanf(fp1, "%d", &tempi[0]);
+            fprintf(fp2, "\t%d", tempi[0]);
         }
         fprintf(fp2, "\n");
     }
 
     fclose(fp1);
     fclose(fp2);
+
+    delete[] gHelicity_rep;
+    delete[] gHelicity_act;
+    delete[] gQRT;
+    delete[] gSeed_rep;
+    delete[] gError;
 
     return 0;
 }
@@ -397,7 +439,7 @@ Int_t BitRan30(Int_t & ranseed)
     return newbit;
 }
 
-void usage(int argc, char** argv)
+void usage(Int_t argc, Char_t** argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
