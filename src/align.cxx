@@ -242,7 +242,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
         fLastSeedRing = gSeedRing_rep[i];
     }
     // last pattern may have some problem, correct it
-    if (fPhaseRing < 3) gErrorRing[gNRing - 1] |= (0x2 << (4 * select));
+    if ((gNRing > 1)&&(fPhaseRing < 3)) gErrorRing[gNRing - 1] |= (0x2 << (4 * select));
 
     fclose(fp1);
     fclose(fp2);
@@ -342,7 +342,7 @@ Int_t align(Int_t nring, Int_t select)
     Int_t pStart = 0, pStartRing = 0;
     Int_t l = 0;
     while ((pStartRing == 0)&&(pStart < gN)) {
-        while (((gSeed_rep[pStart] == gSeed_rep[l]) || ((gError[pStart]&0xFFF) != 0))&&(pStart < gNRing)) pStart++;
+        while (((gSeed_rep[pStart] == gSeed_rep[l]) || ((gError[pStart]&((0xF << (4 * select))+(0x1000 * select) + 0xF)) != 0))&&(pStart < gN)) pStart++;
         Int_t m = 0;
         while ((gSeedRing_rep[m] != gSeed_rep[pStart])&&(m < gNRing)) m++;
         if (m < gNRing) pStartRing = m;
