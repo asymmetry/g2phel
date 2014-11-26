@@ -34,18 +34,18 @@ Int_t NHAPPEX = 0;
 Bool_t USEHAPPEX;
 
 Int_t extract(Int_t nrun);
-Int_t decode_hel(Int_t* data);
-Int_t findword(Int_t* data, struct rocinfo info);
+Int_t decode_hel(Int_t *data);
+Int_t findword(Int_t *data, struct rocinfo info);
 Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val);
-Bool_t isexist(Char_t* fname);
-void usage(Int_t argc, Char_t** argv);
+Bool_t isexist(Char_t *fname);
+void usage(Int_t argc, Char_t **argv);
 
 Int_t EVTLIMIT = -1;
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t RAWDIR[300] = ".";
 Char_t OUTDIR[300] = ".";
 
-Int_t main(Int_t argc, Char_t** argv)
+Int_t main(Int_t argc, Char_t **argv)
 {
     Int_t c;
 
@@ -60,31 +60,37 @@ Int_t main(Int_t argc, Char_t** argv)
         };
 
         Int_t option_index = 0;
-
         c = getopt_long(argc, argv, "c:e:ho:r:", long_options, &option_index);
 
-        if (c == -1) break;
+        if (c == -1)
+            break;
 
         switch (c) {
         case 'c':
             strcpy(CFGFILE, optarg);
             break;
+
         case 'e':
             EVTLIMIT = atoi(optarg);
             break;
+
         case 'h':
             usage(argc, argv);
             exit(0);
             break;
+
         case 'o':
             strcpy(OUTDIR, optarg);
             break;
+
         case 'r':
             strcpy(RAWDIR, optarg);
             break;
+
         case '?':
             // getopt_long already printed an error message
             break;
+
         default:
             usage(argc, argv);
         }
@@ -92,9 +98,9 @@ Int_t main(Int_t argc, Char_t** argv)
 
     Int_t nrun;
 
-    if (optind < argc) {
+    if (optind < argc)
         nrun = atoi(argv[optind++]);
-    } else {
+    else {
         usage(argc, argv);
         exit(-1);
     }
@@ -113,6 +119,7 @@ Int_t main(Int_t argc, Char_t** argv)
     Bool_t configerror = kFALSE;
 
     setting = config_lookup(&cfg, "rocinfo.hel");
+
     if (setting != NULL) {
         config_setting_lookup_int(setting, "roc", &info_HEL.roc);
         Int_t temp;
@@ -123,6 +130,7 @@ Int_t main(Int_t argc, Char_t** argv)
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "rocinfo.ring");
+
     if (setting != NULL) {
         config_setting_lookup_int(setting, "roc", &info_RIN.roc);
         Int_t temp;
@@ -133,6 +141,7 @@ Int_t main(Int_t argc, Char_t** argv)
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "rocinfo.time");
+
     if (setting != NULL) {
         config_setting_lookup_int(setting, "roc", &info_TIM.roc);
         Int_t temp;
@@ -143,6 +152,7 @@ Int_t main(Int_t argc, Char_t** argv)
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "rocinfo.happex");
+
     if (setting != NULL) {
         USEHAPPEX = kTRUE;
         config_setting_lookup_int(setting, "roc", &info_HAP.roc);
@@ -154,6 +164,7 @@ Int_t main(Int_t argc, Char_t** argv)
         USEHAPPEX = kFALSE;
 
     setting = config_lookup(&cfg, "ringinfo.data");
+
     if (setting != NULL)
         NRING = config_setting_length(setting);
     else
@@ -161,6 +172,7 @@ Int_t main(Int_t argc, Char_t** argv)
 
     if (USEHAPPEX) {
         setting = config_lookup(&cfg, "happexinfo.data");
+
         if (setting != NULL)
             NHAPPEX = config_setting_length(setting);
         else
@@ -176,7 +188,7 @@ Int_t main(Int_t argc, Char_t** argv)
     extract(nrun);
     clock_t end = clock();
 
-    printf("Extracting finished in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
+    printf("Extracting finished in %5.3f s\n", (Double_t)(end - start) / (Double_t) CLOCKS_PER_SEC);
 
     config_destroy(&cfg);
 
@@ -198,10 +210,12 @@ Int_t extract(Int_t nrun)
         fprintf(stderr, "Can not open %s/helTIR_%d.decode.dat\n", OUTDIR, nrun);
         exit(-1);
     }
+
     if ((fp2 = fopen(Form("%s/helRIN_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
         fprintf(stderr, "Can not open %s/helRIN_%d.decode.dat\n", OUTDIR, nrun);
         exit(-1);
     }
+
     if (USEHAPPEX) {
         if ((fp3 = fopen(Form("%s/helHAP_%d.decode.dat", OUTDIR, nrun), "w")) == NULL) {
             fprintf(stderr, "Can not open %s/helHAP_%d.decode.dat\n", OUTDIR, nrun);
@@ -213,23 +227,25 @@ Int_t extract(Int_t nrun)
     Int_t evcount = 0;
 
     while (isexist(filename)) {
-        if (coda->codaOpen(filename) == 0) {
+        if (coda->codaOpen(filename) == 0)
             printf("Adding %s ...\n", filename);
-        } else {
+        else {
             fprintf(stderr, "Can not open %s", filename);
             break;
         }
 
         status = coda->codaRead();
+
         while (status == 0) {
-            if ((EVTLIMIT != -1) && (evnum >= EVTLIMIT)) break;
+            if ((EVTLIMIT != -1) && (evnum >= EVTLIMIT))
+                break;
 
             evcount++;
             //if (evcount % 10000 == 0) printf("%d\n", evcount);
-
             data = coda->getEvBuffer();
             evlen = data[0] + 1;
             evtype = data[1] >> 16;
+
             switch (evtype) {
             case 1:
             case 2:
@@ -253,12 +269,14 @@ Int_t extract(Int_t nrun)
 
     fclose(fp1);
     fclose(fp2);
-    if (USEHAPPEX) fclose(fp3);
+
+    if (USEHAPPEX)
+        fclose(fp3);
 
     return 0;
 }
 
-Int_t decode_hel(Int_t* data)
+Int_t decode_hel(Int_t *data)
 {
     Int_t pos, nroc;
     Int_t len, iroc;
@@ -275,6 +293,7 @@ Int_t decode_hel(Int_t* data)
     // get ROC table
     pos = data[2] + 3;
     nroc = 0;
+
     while ((pos + 1 < evlen) && (nroc < MAXROC)) {
         len = data[pos];
         iroc = (data[pos + 1] & 0xff0000) >> 16;
@@ -288,6 +307,7 @@ Int_t decode_hel(Int_t* data)
     // modify it with experiment setting
     if ((index = findword(data, info_HEL)) != -1) {
         d = data[index];
+
         if (info_HEL.roc == 10) { // LHRS
             fHelicityTIR = ((d) & 0x20) >> 5;
             fQRTTIR = ((d) & 0x10) >> 4;
@@ -317,6 +337,7 @@ Int_t decode_hel(Int_t* data)
 
     if ((index = findword(data, info_RIN)) != -1) {
         fIRing = data[index++] & 0x3ff;
+
         for (Int_t i = 0; i < fIRing; i++) {
             fDRing[0] = data[index++];
             d = data[index++];
@@ -333,6 +354,7 @@ Int_t decode_hel(Int_t* data)
         }
     } else
         fIRing = 0;
+
     fprintf(fp1, "%2d\t", fIRing);
 
     if (USEHAPPEX) {
@@ -359,12 +381,17 @@ Int_t decode_hel(Int_t* data)
                 if (((d & 0xbfadc000) == 0xbfadc000) && ((d & 0xffffffff) != 0xffffffff)) {
                     ida = d & 0x0f;
                     idaw = (d & 0xf0) >> 4;
+
                     for (Int_t j = 0; j < ida; j++) {
                         for (Int_t k = i + 2 + j * idaw; k < i + 2 + (j + 1) * idaw; k++) {
                             d = data[k];
                             adc18_decode_data(d, j, num, val);
-                            if (num == 4) fDHappex[0][id] = val;
-                            if (num == 5) fDHappex[1][id] = val;
+
+                            if (num == 4)
+                                fDHappex[0][id] = val;
+
+                            if (num == 5)
+                                fDHappex[1][id] = val;
                         }
                     }
                 }
@@ -372,8 +399,10 @@ Int_t decode_hel(Int_t* data)
 
             for (Int_t i = 0; i < fIHappex; i++) {
                 fprintf(fp3, "%8d\t%d\t%d", evnum, fHelicityHappex[i], fQRTHappex[i]);
+
                 for (Int_t k = 0; k < NHAPPEX; k++)
                     fprintf(fp3, "\t%6d", fDHappex[k][i]);
+
                 fprintf(fp3, "\n");
             }
         } else
@@ -382,11 +411,10 @@ Int_t decode_hel(Int_t* data)
         fIHappex = 0;
 
     fprintf(fp1, "%2d\n", fIHappex);
-
     return 0;
 }
 
-Int_t findword(Int_t* data, struct rocinfo info)
+Int_t findword(Int_t *data, struct rocinfo info)
 {
     Int_t i;
 
@@ -394,6 +422,7 @@ Int_t findword(Int_t* data, struct rocinfo info)
         i = info.index + rocpos[info.roc];
     else {
         for (i = rocpos[info.roc]; (i < rocpos[info.roc] + roclen[info.roc] - 4) && ((data[i] & 0xfffff000) != info.header); i++);
+
         i += info.index;
     }
 
@@ -416,11 +445,15 @@ Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val)
         ch_number = (0x3) & (data >> 29);
         div_n = ((0x3) & (data >> 25));
         divider = 1;
+
         for (ii = 0; ii < div_n; ii++)
             divider = divider * 2;
+
         data_type = (0x7) & (data >> 22);
+
         if (data_type == 0) {
             diff_value = (0x1FFFFF) & data;
+
             if (data & 0x200000) {
                 sign = -1;
                 difference = sign * ((~diff_value & 0x1FFFFF) + 1);
@@ -428,24 +461,28 @@ Int_t adc18_decode_data(Int_t data, Int_t adcnum, Int_t &num, Int_t &val)
                 sign = 1;
                 difference = diff_value;
             }
+
             diff_avg = ((Float_t) difference) / ((Float_t) divider);
+
             if (ch_number >= 0 && ch_number < 4) {
                 num = ch_number + adcnum * 4;
                 val = (Int_t) diff_avg;
             }
         }
     }
+
     return 0;
 }
 
-Bool_t isexist(Char_t* fname)
+Bool_t isexist(Char_t *fname)
 {
     FILE *temp;
+
     Bool_t isopen;
 
-    if ((temp = fopen(fname, "r")) == NULL) {
+    if ((temp = fopen(fname, "r")) == NULL)
         isopen = false;
-    } else {
+    else {
         isopen = true;
         fclose(temp);
     }
@@ -453,7 +490,7 @@ Bool_t isexist(Char_t* fname)
     return isopen;
 }
 
-void usage(Int_t argc, Char_t** argv)
+void usage(Int_t argc, Char_t **argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
@@ -462,4 +499,3 @@ void usage(Int_t argc, Char_t** argv)
     printf("  -o, --outdir=.             Set output directory\n");
     printf("  -r, --rawdir=.             Set rawdata directory\n");
 }
-

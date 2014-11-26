@@ -35,14 +35,14 @@ FILE *fp1, *fp2, *fp3;
 
 Int_t inserttir(Int_t nrun, Int_t ntir);
 Int_t insertring(Int_t nrun, Int_t nring, Int_t select);
-Bool_t isexist(Char_t* fname);
-void usage(Int_t argc, Char_t** argv);
+Bool_t isexist(Char_t *fname);
+void usage(Int_t argc, Char_t **argv);
 
 Char_t CFGFILE[300] = "./config.cfg";
 Char_t INFODIR[300] = ".";
 Char_t ROOTDIR[300] = ".";
 
-Int_t main(Int_t argc, Char_t** argv)
+Int_t main(Int_t argc, Char_t **argv)
 {
     Int_t c;
 
@@ -56,28 +56,33 @@ Int_t main(Int_t argc, Char_t** argv)
         };
 
         Int_t option_index = 0;
-
         c = getopt_long(argc, argv, "c:hi:r:", long_options, &option_index);
 
-        if (c == -1) break;
+        if (c == -1)
+            break;
 
         switch (c) {
         case 'c':
             strcpy(CFGFILE, optarg);
             break;
+
         case 'h':
             usage(argc, argv);
             exit(0);
             break;
+
         case 'i':
             strcpy(INFODIR, optarg);
             break;
+
         case 'r':
             strcpy(ROOTDIR, optarg);
             break;
+
         case '?':
             // getopt_long already printed an error message
             break;
+
         default:
             usage(argc, argv);
         }
@@ -85,9 +90,9 @@ Int_t main(Int_t argc, Char_t** argv)
 
     Int_t nrun;
 
-    if (optind < argc) {
+    if (optind < argc)
         nrun = atoi(argv[optind++]);
-    } else {
+    else {
         usage(argc, argv);
         exit(-1);
     }
@@ -106,16 +111,19 @@ Int_t main(Int_t argc, Char_t** argv)
 
     Bool_t configerror = kFALSE;
     const Char_t *temp;
-
     Int_t ntir = 0;
+
     setting = config_lookup(&cfg, "tirinfo");
+
     if (setting != NULL) {
         config_lookup_string(&cfg, "tirinfo.name", &temp);
         strcpy(tree_HEL.name, temp);
         config_lookup_string(&cfg, "tirinfo.prefix", &temp);
         strcpy(tree_HEL.prefix, temp);
         setting = config_lookup(&cfg, "tirinfo.data");
+
         ntir = config_setting_length(setting);
+
         for (Int_t i = 0; i < ntir; i++) {
             dataelem = config_setting_get_elem(setting, i);
             config_setting_lookup_string(dataelem, "name", &temp);
@@ -126,13 +134,16 @@ Int_t main(Int_t argc, Char_t** argv)
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "ringinfo");
+
     if (setting != NULL) {
         config_lookup_string(&cfg, "ringinfo.name", &temp);
         strcpy(tree_RIN.name, temp);
         config_lookup_string(&cfg, "ringinfo.prefix", &temp);
         strcpy(tree_RIN.prefix, temp);
         setting = config_lookup(&cfg, "ringinfo.data");
+
         NRING = config_setting_length(setting);
+
         for (Int_t i = 0; i < NRING; i++) {
             strcpy(tree_RIN.data[i].name, config_setting_get_string_elem(setting, i));
             tree_RIN.data[i].index = -1;
@@ -141,6 +152,7 @@ Int_t main(Int_t argc, Char_t** argv)
         configerror = kTRUE;
 
     setting = config_lookup(&cfg, "happexinfo");
+
     if (setting != NULL) {
         USEHAPPEX = kTRUE;
         config_lookup_string(&cfg, "happexinfo.name", &temp);
@@ -148,14 +160,15 @@ Int_t main(Int_t argc, Char_t** argv)
         config_lookup_string(&cfg, "happexinfo.prefix", &temp);
         strcpy(tree_HAP.prefix, temp);
         setting = config_lookup(&cfg, "happexinfo.data");
+
         NHAPPEX = config_setting_length(setting);
+
         for (Int_t i = 0; i < NHAPPEX; i++) {
             strcpy(tree_HAP.data[i].name, config_setting_get_string_elem(setting, i));
             tree_HAP.data[i].index = -1;
         }
-    } else {
+    } else
         USEHAPPEX = kFALSE;
-    }
 
     if (configerror) {
         fprintf(stderr, "Invalid cfg file\n");
@@ -167,10 +180,13 @@ Int_t main(Int_t argc, Char_t** argv)
     clock_t start = clock();
     inserttir(nrun, ntir);
     insertring(nrun, NRING, 1);
-    if (USEHAPPEX) insertring(nrun, NHAPPEX, 2);
+
+    if (USEHAPPEX)
+        insertring(nrun, NHAPPEX, 2);
+
     clock_t end = clock();
 
-    printf("Inserting finished in %5.3f s\n", (Double_t) (end - start) / (Double_t) CLOCKS_PER_SEC);
+    printf("Inserting finished in %5.3f s\n", (Double_t)(end - start) / (Double_t) CLOCKS_PER_SEC);
 
     return 0;
 }
@@ -179,7 +195,6 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
 {
     Int_t filecount = 0;
     Char_t filename[300];
-
     sprintf(filename, "%s/g2p_%d.root", ROOTDIR, nrun);
 
     while (isexist(filename)) {
@@ -194,7 +209,6 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         TTree *t = (TTree *) f->Get("T");
 
         THaEvent *event = new THaEvent();
-
         t->SetBranchAddress("Event_Branch", &event);
 
         Int_t fHelicity_rep = 0, fHelicity_act = 0;
@@ -205,7 +219,6 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         Int_t fEvNum = -100;
 
         TList newBranch;
-
         newBranch.Add(t->Branch(Form("%shel_act", tree_HEL.prefix), &fHelicity_act, "hel_act/I"));
         newBranch.Add(t->Branch(Form("%shel_rep", tree_HEL.prefix), &fHelicity_rep, "hel_rep/I"));
         newBranch.Add(t->Branch(Form("%sqrt", tree_HEL.prefix), &fQRT, "qrt/I"));
@@ -216,6 +229,7 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         newBranch.Add(t->Branch(Form("%serror", tree_HEL.prefix), &fError, "error/I"));
         newBranch.Add(t->Branch(Form("%snring", tree_HEL.prefix), &fIRing, "nring/I"));
         newBranch.Add(t->Branch(Form("%snhappex", tree_HEL.prefix), &fIHappex, "nhappex/I"));
+
         for (Int_t i = 0; i < ntir; i++)
             newBranch.Add(t->Branch(Form("%s%s", tree_HEL.prefix, tree_HEL.data[i].name), &fDATA[tree_HEL.data[i].index], Form("%s/I", tree_HEL.data[i].name)));
 
@@ -225,16 +239,19 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
         fscanf(fp1, "%d", &N);
         nentries = t->GetEntries();
         TIter next(&newBranch);
+
         for (Int_t k = 0; k < nentries; k++) {
             t->GetEntry(k);
             gEvNum = Int_t(event->GetHeader()->GetEvtNum());
+
             //if (gEvNum % 10000 == 0) printf("%d\n", gEvNum);
             while ((fEvNum < gEvNum) && (!feof(fp1))) {
                 fscanf(fp1, "%d%d%d%d%d%d%d%x%d%d%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fPairSync, &fMPS, &fTimeStamp, &fSeed, &fError, &fIRing, &fIHappex);
-                for (Int_t l = 0; l < NRING + NHAPPEX; l++) {
+
+                for (Int_t l = 0; l < NRING + NHAPPEX; l++)
                     fscanf(fp1, "%d", &fDATA[l]);
-                }
             }
+
             if (fEvNum != gEvNum) {
                 fHelicity_rep = 0;
                 fHelicity_act = 0;
@@ -246,27 +263,29 @@ Int_t inserttir(Int_t nrun, Int_t ntir)
                 fError = 0x8000;
                 fIRing = 0;
                 fIHappex = 0;
-                for (Int_t l = 0; l < NRING + NHAPPEX; l++) {
+
+                for (Int_t l = 0; l < NRING + NHAPPEX; l++)
                     fDATA[l] = 0;
-                }
             }
+
             next.Reset();
-            while (TBranch * workBranch = (TBranch*) next()) {
+
+            while (TBranch *workBranch = (TBranch *) next())
                 workBranch->Fill();
-            }
         }
 
         t->Write("", TObject::kOverwrite);
+
         f->Purge();
         f->Close();
 
         filecount++;
         sprintf(filename, "%s/g2p_%d_%d.root", ROOTDIR, nrun, filecount);
-
         fclose(fp1);
     }
 
-    if (filecount == 0) return -1;
+    if (filecount == 0)
+        return -1;
 
     return 0;
 }
@@ -277,22 +296,26 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
 
     Int_t filecount = 0;
     Char_t filename[300];
+    sprintf(filename, "%s/g2p_%d.root", ROOTDIR, nrun);
+
     treeinfo *ringtree = NULL;
 
-    sprintf(filename, "%s/g2p_%d.root", ROOTDIR, nrun);
     while (isexist(filename)) {
         TFile *f = new TFile(filename, "UPDATE");
+
         if (select == 1) {
             if ((fp1 = fopen(Form("%s/helRIN_%d.dat", INFODIR, nrun), "r")) == NULL) {
                 fprintf(stderr, "Can not open %s/helRIN_%d.dat\n", INFODIR, nrun);
                 exit(-1);
             }
+
             ringtree = &tree_RIN;
         } else if (select == 2) {
             if ((fp1 = fopen(Form("%s/helHAP_%d.dat", INFODIR, nrun), "r")) == NULL) {
                 fprintf(stderr, "Can not open %s/helHAP_%d.dat\n", INFODIR, nrun);
                 exit(-1);
             }
+
             ringtree = &tree_HAP;
         }
 
@@ -302,13 +325,13 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
         Int_t fEvNum;
 
         TTree *t = new TTree(ringtree->name, ringtree->name);
-
         t->Branch(Form("%sevnum", ringtree->prefix), &fEvNum, "evnum/I");
         t->Branch(Form("%shel_act", ringtree->prefix), &fHelicity_act, "hel_act/I");
         t->Branch(Form("%shel_rep", ringtree->prefix), &fHelicity_rep, "hel_rep/I");
         t->Branch(Form("%sqrt", ringtree->prefix), &fQRT, "qrt/I");
         t->Branch(Form("%sseed", ringtree->prefix), &fSeed, "seed/I");
         t->Branch(Form("%serror", ringtree->prefix), &fError, "error/I");
+
         for (Int_t i = 0; i < nring; i++)
             t->Branch(Form("%s%s", ringtree->prefix, ringtree->data[i].name), &fDATA[i], Form("%s/I", ringtree->data[i].name));
 
@@ -326,22 +349,31 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
         gEvNumMin = Int_t(event->GetHeader()->GetEvtNum());
         ori->GetEntry(nentries - 10);
         gEvNumMax = Int_t(event->GetHeader()->GetEvtNum());
+
         for (Int_t i = 9; i >= 1; i--) {
             ori->GetEntry(nentries - i);
             Int_t temp = Int_t(event->GetHeader()->GetEvtNum());
-            if (temp == gEvNumMax + 1) gEvNumMax = temp;
+
+            if (temp == gEvNumMax + 1)
+                gEvNumMax = temp;
         }
 
         ori = NULL;
 
         fscanf(fp1, "%d", &N);
+
         for (Int_t k = 0; k < N; k++) {
             //if ((k + 1) % 10000 == 0) printf("%d\n", k + 1);
             fscanf(fp1, "%d%d%d%d%x%d", &fEvNum, &fHelicity_act, &fHelicity_rep, &fQRT, &fSeed, &fError);
+
             for (Int_t l = 0; l < nring; l++)
                 fscanf(fp1, "%d", &fDATA[l]);
-            if ((fEvNum >= gEvNumMin) && (fEvNum <= gEvNumMax)) t->Fill();
-            if (fEvNum > gEvNumMax) break;
+
+            if ((fEvNum >= gEvNumMin) && (fEvNum <= gEvNumMax))
+                t->Fill();
+
+            if (fEvNum > gEvNumMax)
+                break;
         }
 
         t->Write("", TObject::kOverwrite);
@@ -354,19 +386,20 @@ Int_t insertring(Int_t nrun, Int_t nring, Int_t select)
         fclose(fp1);
     }
 
-    if (filecount == 0) return -1;
+    if (filecount == 0)
+        return -1;
 
     return 0;
 }
 
-Bool_t isexist(Char_t* fname)
+Bool_t isexist(Char_t *fname)
 {
     FILE *temp;
     Bool_t isopen;
 
-    if ((temp = fopen(fname, "r")) == NULL) {
+    if ((temp = fopen(fname, "r")) == NULL)
         isopen = false;
-    } else {
+    else {
         isopen = true;
         fclose(temp);
     }
@@ -374,7 +407,7 @@ Bool_t isexist(Char_t* fname)
     return isopen;
 }
 
-void usage(Int_t argc, Char_t** argv)
+void usage(Int_t argc, Char_t **argv)
 {
     printf("usage: %s [options] RUN_NUMBER\n", argv[0]);
     printf("  -c, --cfgfile=config.cfg   Set configuration file name\n");
