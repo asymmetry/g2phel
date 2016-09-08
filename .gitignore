@@ -12,11 +12,7 @@
 *.a
 
 # Excutables
-align
-gen_hel
-decode
-ring
-tir
+hel_*
 
 # Work Directory
 raw

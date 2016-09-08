@@ -16,8 +16,6 @@ FILE *fp1, *fp2;
 
 // global variables
 Int_t NRING = 0;
-Int_t NHAPPEX = 0;
-Bool_t USEHAPPEX;
 
 Int_t *gHel_act;
 Int_t *gSeed_rep;
@@ -96,9 +94,6 @@ Int_t main(Int_t argc, Char_t **argv)
         exit(-1);
     }
 
-    Int_t fIndexRing, fIndexHappex;
-    Int_t fThrRing, fThrHappex;
-
     config_t cfg;
     config_setting_t *setting;
 
@@ -112,7 +107,13 @@ Int_t main(Int_t argc, Char_t **argv)
 
     Bool_t configerror = kFALSE;
 
+    Int_t fIndexRing, fThrRing;
+    Int_t select;
+
+#ifndef HAPPEX
     setting = config_lookup(&cfg, "ringinfo.data");
+
+    select = 1;
 
     if (setting != NULL) {
         NRING = config_setting_length(setting);
@@ -121,15 +122,19 @@ Int_t main(Int_t argc, Char_t **argv)
     } else
         configerror = kTRUE;
 
+#else
     setting = config_lookup(&cfg, "happexinfo.data");
 
+    select = 2;
+
     if (setting != NULL) {
-        USEHAPPEX = kTRUE;
-        NHAPPEX = config_setting_length(setting);
-        config_lookup_int(&cfg, "happexinfo.bcm.index", &fIndexHappex);
-        config_lookup_int(&cfg, "happexinfo.bcm.threshold", &fThrHappex);
+        NRING = config_setting_length(setting);
+        config_lookup_int(&cfg, "happexinfo.bcm.index", &fIndexRing);
+        config_lookup_int(&cfg, "happexinfo.bcm.threshold", &fThrRing);
     } else
-        USEHAPPEX = kFALSE;
+        configerror = kTRUE;
+
+#endif
 
     if (configerror) {
         fprintf(stderr, "Invalid cfg file\n");
@@ -139,25 +144,17 @@ Int_t main(Int_t argc, Char_t **argv)
     clock_t start, end;
 
     start = clock();
-    readin(nrun, NRING, 1);
-    check(fIndexRing, fThrRing, 1);
-    align(NRING, 1);
-    printout(nrun, NRING, 1);
+
+    if (select == 2)
+        gSystem->Rename(Form("%s/hel_%d.dat", OUTDIR, nrun), Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun));
+
+    readin(nrun, NRING, select);
+    check(fIndexRing, fThrRing, select);
+    align(NRING, select);
+    printout(nrun, NRING, select);
     end = clock();
 
     printf("Alignment finished in %5.3f s\n", (Double_t)(end - start) / (Double_t) CLOCKS_PER_SEC);
-
-    if (USEHAPPEX) {
-        start = end;
-        gSystem->Rename(Form("%s/hel_%d.dat", OUTDIR, nrun), Form("%s/helTIR_%d.nohapp.dat", INDIR, nrun));
-        readin(nrun, NHAPPEX, 2);
-        check(fIndexHappex, fThrHappex, 2);
-        align(NHAPPEX, 2);
-        printout(nrun, NHAPPEX, 2);
-        end = clock();
-
-        printf("Alignment finished in %5.3f s\n", (Double_t)(end - start) / (Double_t) CLOCKS_PER_SEC);
-    }
 
     return 0;
 }
@@ -249,7 +246,7 @@ Int_t readin(Int_t nrun, Int_t nring, Int_t select)
         if (gSeedRing_rep[i] == fLastSeedRing)
             fPhaseRing++;
         else {
-            if (fPhaseRing < 3)
+            if ((fPhaseRing < 3) && (i > 0))
                 gErrorRing[i - 1] |= (0x2 << (4 * select));
 
             fPhaseRing = 0;
@@ -287,14 +284,14 @@ Int_t check(Int_t index, Int_t threshold, Int_t select)
 
             Int_t msave = m;
 
-            while ((gSeedRing_rep[m] == gSeedRing_rep[msave]) && (m >= 0)) {
+            while ((m >= 0) && (gSeedRing_rep[m] == gSeedRing_rep[msave])) {
                 gErrorRing[m] |= ((0x4 << (4 * select)) + (0x1000 * select));
                 m--;
             }
 
             Int_t p = l;
 
-            while ((gDataRing[index][p] < threshold) && (p < gNRing)) {
+            while ((p < gNRing) && (gDataRing[index][p] < threshold)) {
                 gErrorRing[p] |= ((0x4 << (4 * select)) + (0x1000 * select));
                 p++;
             }
@@ -304,7 +301,7 @@ Int_t check(Int_t index, Int_t threshold, Int_t select)
 
             Int_t psave = p;
 
-            while ((gSeedRing_rep[p] == gSeedRing_rep[psave]) && (p < gNRing)) {
+            while ((p < gNRing) && (gSeedRing_rep[p] == gSeedRing_rep[psave])) {
                 gErrorRing[p] |= ((0x4 << (4 * select)) + (0x1000 * select));
                 p++;
             }
@@ -313,14 +310,14 @@ Int_t check(Int_t index, Int_t threshold, Int_t select)
         } else if (gErrorRing[l] != 0) { // if a quartet contains bad event, mark the whole quartet to be bad
             Int_t m = l;
 
-            while ((gSeedRing_rep[m] == gSeedRing_rep[l]) && (m >= 0)) {
+            while ((m >= 0) && (gSeedRing_rep[m] == gSeedRing_rep[l])) {
                 gErrorRing[m] |= (gErrorRing[l] | (0x1000 * select));
                 m--;
             }
 
             Int_t p = l + 1;
 
-            while ((gSeedRing_rep[p] == gSeedRing_rep[l]) && (p < gNRing)) {
+            while ((p < gNRing) && (gSeedRing_rep[p] == gSeedRing_rep[l])) {
                 gErrorRing[p] |= (gErrorRing[l] | (0x1000 * select));
                 p++;
             }
@@ -337,7 +334,7 @@ Int_t check(Int_t index, Int_t threshold, Int_t select)
 
     while (l < gN) {
         if (gSeed_rep[l] != 0) {
-            while ((gSeedRing_rep[pRing] != gSeed_rep[l]) && (pRing < gNRing))
+            while ((pRing < gNRing) && (gSeedRing_rep[pRing] != gSeed_rep[l]))
                 pRing++;
 
             if (pRing < gNRing) {
@@ -352,14 +349,14 @@ Int_t check(Int_t index, Int_t threshold, Int_t select)
         if ((gError[l] & ((0xF << (4 * select)) + 0x007)) != 0) {
             Int_t m = l;
 
-            while ((gSeed_rep[m] == gSeed_rep[l]) && (m >= 0)) {
+            while ((m >= 0) && (gSeed_rep[m] == gSeed_rep[l])) {
                 gError[m] |= (gError[l] | (0x1000 * select));
                 m--;
             }
 
             Int_t p = l + 1;
 
-            while ((gSeed_rep[p] == gSeed_rep[l]) && (p < gN)) {
+            while ((p < gN) && (gSeed_rep[p] == gSeed_rep[l])) {
                 gError[p] |= (gError[l] | (0x1000 * select));
                 p++;
             }
@@ -613,9 +610,6 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select)
         fprintf(fp2, "%d\t%d\t%d\t%d\t%08x\t%d\t%s\n", tempi[0], tempi[1], tempi[2], tempi[3], tempi[4], gErrorRing[i], tempc);
     }
 
-    fclose(fp1);
-    fclose(fp2);
-
     delete[] gHel_act;
     delete[] gSeed_rep;
     delete[] gError;
@@ -632,6 +626,9 @@ Int_t printout(Int_t nrun, Int_t nring, Int_t select)
         delete[] gDataRing[i];
 
     delete[] gDataRing;
+
+    fclose(fp1);
+    fclose(fp2);
 
     return 0;
 }

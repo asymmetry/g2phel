@@ -23,42 +23,38 @@ CONFLIBS     := -L$(LIBCONFIG)/lib -lconfig
 INCLUDES     += -I$(LIBCONFIG)/include
 
 CXX           = g++
-CXXFLAGS      = -O3
-LD            = g++
-LDFLAGS       = -O3 
-DEFINES       = -DLINUXVERS -DHAS_SSTREAM
-CXXFLAGS     += -Wall -Woverloaded-virtual -fPIC -fno-strict-aliasing
+CXXFLAGS      = -O3 -Wall -Woverloaded-virtual -fPIC -fno-strict-aliasing
+CXXFLAGS     += $(INCLUDES)
 
-CXXFLAGS     += $(DEFINES) $(INCLUDES)
-LIBS         += $(ROOTLIBS) $(HALLALIBS) $(CONFLIBS) $(SYSLIBS)
-GLIBS        += $(ROOTGLIBS) $(HALLALIBS) $(CONFLIBS) $(SYSLIBS)
-
-PROGRAMS = decode ring tir align gen_hel
+PROGRAMS = hel_decode hel_ring hel_happex hel_tir hel_alignr hel_alignh hel_insert
 
 SRCDIR := src
 
 all: $(PROGRAMS)
 
-decode: $(SRCDIR)/decode.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS)
+hel_decode: $(SRCDIR)/decode.cxx
+	$(CXX) $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(HALLALIBS) $(CONFLIBS)
 
-ring: $(SRCDIR)/ring.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
+hel_ring: $(SRCDIR)/ring.cxx
+	$(CXX) $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
 
-tir: $(SRCDIR)/tir.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
+hel_happex: $(SRCDIR)/ring.cxx
+	$(CXX) $(CXXFLAGS) -DHAPPEX -o $@ $< $(ROOTLIBS) $(CONFLIBS)
 
-align: $(SRCDIR)/align.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
+hel_tir: $(SRCDIR)/tir.cxx
+	$(CXX) $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
 
-gen_hel: $(SRCDIR)/gen.o
-	$(LD) -g $(LDFLAGS) -o $@ $< $(LIBS)
+hel_alignr: $(SRCDIR)/align.cxx
+	$(CXX) $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(CONFLIBS)
+
+hel_alignh: $(SRCDIR)/align.cxx
+	$(CXX) $(CXXFLAGS) -DHAPPEX -o $@ $< $(ROOTLIBS) $(CONFLIBS)
+
+hel_insert: $(SRCDIR)/insert.cxx
+	$(CXX) $(CXXFLAGS) -o $@ $< $(ROOTLIBS) $(HALLALIBS) $(CONFLIBS)
 
 clean:
-	rm -f $(SRCDIR)/*.o $(PROGRAMS)
+	rm -f $(PROGRAMS)
 
 release:
 	tar cvzf helicity.tar.gz README Makefile src helicity.sh --exclude=*.o
-
-$(SRCDIR)/%.o:	$(SRCDIR)/%.cxx
-	$(CXX) $(CXXFLAGS) -o $@ -c $<

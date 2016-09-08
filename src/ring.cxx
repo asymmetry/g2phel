@@ -12,11 +12,9 @@ FILE *fp1, *fp2;
 
 // global variables
 Int_t NRING = 0;
-Int_t NHAPPEX = 0;
 Int_t NDELAY;
 Int_t MAXBIT;
 Double_t WT;
-Bool_t USEHAPPEX;
 
 Int_t *gHelicity_rep;
 Int_t *gHelicity_act;
@@ -108,27 +106,31 @@ Int_t main(Int_t argc, Char_t **argv)
     if (!(config_lookup_int(&cfg, "ndelay", &NDELAY) && config_lookup_int(&cfg, "maxbit", &MAXBIT) && config_lookup_float(&cfg, "windowlength", &WT)))
         configerror = kTRUE;
 
+    Int_t delay, select;
+
+#ifndef HAPPEX
     setting = config_lookup(&cfg, "ringinfo.data");
 
-    Int_t delayRIN;
+    select = 1;
 
     if (setting != NULL) {
         NRING = config_setting_length(setting);
-        config_lookup_int(&cfg, "ringinfo.delay", &delayRIN);
+        config_lookup_int(&cfg, "ringinfo.delay", &delay);
     } else
         configerror = kTRUE;
 
-
+#else
     setting = config_lookup(&cfg, "happexinfo.data");
 
-    Int_t delayHAP;
+    select = 2;
 
     if (setting != NULL) {
-        USEHAPPEX = kTRUE;
-        NHAPPEX = config_setting_length(setting);
-        config_lookup_int(&cfg, "happexinfo.delay", &delayHAP);
+        NRING = config_setting_length(setting);
+        config_lookup_int(&cfg, "happexinfo.delay", &delay);
     } else
-        USEHAPPEX = kFALSE;
+        configerror = kTRUE;
+
+#endif
 
     if (configerror) {
         fprintf(stderr, "Invalid cfg file\n");
@@ -138,24 +140,13 @@ Int_t main(Int_t argc, Char_t **argv)
     clock_t start, end;
 
     start = clock();
-    readin(nrun, NRING, 1);
-    predictring(1);
-    delayring(delayRIN, 1);
-    printout(nrun, NRING, 1);
+    readin(nrun, NRING, select);
+    predictring(select);
+    delayring(delay, select);
+    printout(nrun, NRING, select);
     end = clock();
 
     printf("Actual helicity calculated in %5.3f s\n", (Double_t)(end - start) / (Double_t) CLOCKS_PER_SEC);
-
-    if (USEHAPPEX) {
-        start = clock();
-        readin(nrun, NHAPPEX, 2);
-        predictring(2);
-        delayring(delayHAP, 2);
-        printout(nrun, NHAPPEX, 2);
-        end = clock();
-
-        printf("Actual helicity calculated in %5.3f s\n", (Double_t)(end - start) / (Double_t) CLOCKS_PER_SEC);
-    }
 
     config_destroy(&cfg);
 
